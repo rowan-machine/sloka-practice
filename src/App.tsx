@@ -2121,17 +2121,19 @@ function App() {
 
                       return (
                         <div key={idx} className={`p-3 rounded-xl border ${accBg}`}>
-                          <div className="flex items-center justify-between gap-3">
-                            <div className="flex items-center gap-3 flex-1 min-w-0">
-                              <span className="text-xs text-gray-400 font-mono w-6 text-right shrink-0">#{idx + 1}</span>
-                              <button onClick={() => speakWord(ws.word)}
-                                className="font-serif text-lg font-bold truncate hover:text-purple-700 transition-colors text-gray-800"
-                                title="Click to hear correct pronunciation">
-                                <span className="text-xs mr-1 opacity-50">🔊</span>{ws.word}
-                              </button>
-                              {isWordKnown(knownWords, ws.word) && <span className="text-xs text-green-600 shrink-0">✓</span>}
-                            </div>
-                            <div className="flex items-center gap-2 shrink-0">
+                          {/* Word name row */}
+                          <div className="flex items-center gap-2 mb-2">
+                            <span className="text-xs text-gray-400 font-mono shrink-0">#{idx + 1}</span>
+                            <button onClick={() => speakWord(ws.word)}
+                              className="font-serif text-xl font-bold hover:text-purple-700 transition-colors text-gray-800"
+                              title="Click to hear correct pronunciation">
+                              🔊 {ws.word}
+                            </button>
+                            {isWordKnown(knownWords, ws.word) && <span className="text-xs text-green-600 shrink-0">✓ known</span>}
+                          </div>
+                          {/* Stats row */}
+                          <div className="flex items-center justify-between gap-2">
+                            <div className="flex items-center gap-2">
                               {wpQueue.includes(ws.word) ? (
                                 <button onClick={() => setWpQueue(prev => prev.filter(w => w !== ws.word))}
                                   className="text-[10px] px-2 py-1 rounded-lg bg-blue-100 text-blue-600 border border-blue-300 font-medium"
@@ -2143,13 +2145,13 @@ function App() {
                                 }} className="text-[10px] px-2 py-1 rounded-lg bg-blue-50 text-blue-600 hover:bg-blue-100 border border-blue-200 font-medium"
                                   title="Add to practice queue">🎯 Queue</button>
                               )}
-                              <div className="text-right">
-                                <div className={`text-lg font-bold ${accColor}`}>{acc}%</div>
-                                <div className="text-xs text-gray-400">{ws.attempts} attempt{ws.attempts !== 1 ? 's' : ''}</div>
-                              </div>
+                              <span className="text-xs text-gray-400">{ws.attempts} attempt{ws.attempts !== 1 ? 's' : ''}</span>
+                            </div>
+                            <div className="flex items-center gap-2">
                               <div className="w-16 h-2 bg-gray-200 rounded-full overflow-hidden">
                                 <div className={`h-full rounded-full ${acc >= 80 ? 'bg-green-500' : acc >= 50 ? 'bg-yellow-500' : 'bg-red-500'}`} style={{ width: `${acc}%` }} />
                               </div>
+                              <span className={`text-sm font-bold ${accColor}`}>{acc}%</span>
                             </div>
                           </div>
                           {/* History dots */}
