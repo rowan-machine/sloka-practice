@@ -238,7 +238,14 @@ function splitIntoLines(text: string, syllablesPerLine: number): string[][] {
 
 function App() {
   const [page, setPage] = useState<'practice' | 'sounds' | 'guide' | 'settings'>('practice')
-  const [sloka, setSloka] = useState('')
+  const [sloka, setSloka] = useState(() => {
+    const savedId = localStorage.getItem('sloka_last_verse')
+    if (savedId) {
+      const entry = slokaLibrary.find(e => e.id === savedId)
+      return entry?.text || ''
+    }
+    return ''
+  })
   const [transcript, setTranscript] = useState('')
   const [isListening, setIsListening] = useState(false)
   const [selectedMeter, setSelectedMeter] = useState<Meter>('anushtubh')
@@ -249,6 +256,7 @@ function App() {
   const [tooltipWord, setTooltipWord] = useState<{ word: string; entry: GlossaryEntry; rect: DOMRect } | null>(null)
   const recognitionRef = useRef<any>(null)
   const isListeningRef = useRef(false)
+  const accumulatedTranscriptRef = useRef('')
 
   // Sound scores, known words, word stats (all persisted)
   const [soundScores, setSoundScores] = useState<Record<string, SoundScore>>(() => loadScores())
@@ -293,7 +301,14 @@ function App() {
   const [libraryDifficulty, setLibraryDifficulty] = useState<Difficulty | 'all'>('all')
   const [librarySource, setLibrarySource] = useState<string>('all')
   const [useDynamicDifficulty, setUseDynamicDifficulty] = useState(true)
-  const [selectedEntry, setSelectedEntry] = useState<SlokaEntry | null>(null)
+  const [selectedEntry, setSelectedEntry] = useState<SlokaEntry | null>(() => {
+    const savedId = localStorage.getItem('sloka_last_verse')
+    if (savedId) {
+      const entry = slokaLibrary.find(e => e.id === savedId)
+      return entry || null
+    }
+    return null
+  })
   const [librarySearch, setLibrarySearch] = useState('')
 
   // Collect unique sources for filter
@@ -340,6 +355,7 @@ function App() {
   const loadSloka = (entry: SlokaEntry) => {
     setSloka(entry.text)
     setSelectedEntry(entry)
+    localStorage.setItem('sloka_last_verse', entry.id)
     setWordMatches([])
     setTranscript('')
     setShowLibrary(false)
@@ -363,26 +379,25 @@ function App() {
 
     const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition
     const recognition = new SpeechRecognition()
-    recognition.continuous = false
+    recognition.continuous = true
     recognition.interimResults = true
     recognition.lang = 'en-IN'
     recognition.maxAlternatives = 3
 
     recognition.onresult = (event: any) => {
-      // Use finalized results when available, otherwise show interim for responsiveness
       let finalized = ''
       let interim = ''
       for (let i = 0; i < event.results.length; i++) {
         if (event.results[i].isFinal) {
-          finalized += event.results[i][0].transcript
+          finalized += event.results[i][0].transcript + ' '
         } else {
-          interim += event.results[i][0].transcript
+          interim += event.results[i][0].transcript + ' '
         }
       }
-      // Prefer finalized, but show interim so mobile users see feedback immediately
-      const text = finalized.trim() || interim.trim()
-      if (text) {
-        setTranscript(text)
+      // Combine accumulated (from previous sessions) + current finalized + interim
+      const fullText = (accumulatedTranscriptRef.current + ' ' + finalized + interim).trim()
+      if (fullText) {
+        setTranscript(fullText)
       }
     }
 
@@ -391,17 +406,21 @@ function App() {
       if (event.error === 'not-allowed' || event.error === 'service-not-available') {
         setIsListening(false)
       }
-      // 'no-speech' and 'aborted' are normal on mobile — just restart
     }
 
     recognition.onend = () => {
       if (isListeningRef.current) {
-        // Small delay before restart — mobile Chrome needs this
+        // Save finalized text before restart
+        const currentTranscript = document.querySelector('[data-transcript]')?.textContent || ''
+        if (currentTranscript) {
+          accumulatedTranscriptRef.current = currentTranscript
+        }
+        // Restart with delay for mobile compatibility
         setTimeout(() => {
           if (isListeningRef.current) {
             try { recognition.start() } catch (_) {}
           }
-        }, 100)
+        }, 150)
       }
     }
 
@@ -683,6 +702,7 @@ function App() {
     if (recognitionRef.current) {
       setTranscript('')
       setWordMatches([])
+      accumulatedTranscriptRef.current = ''
       setIsListening(true)
       lastRecordingRef.current = undefined
       startRecording()
@@ -1472,7 +1492,7 @@ function App() {
             {isListening && transcript && (
               <div className="mt-2 p-2 bg-gray-50 border border-gray-200 rounded-lg">
                 <p className="text-[11px] text-gray-400 mb-0.5">Heard:</p>
-                <p className="text-xs text-gray-600 italic">{transcript}</p>
+                <p className="text-xs text-gray-600 italic" data-transcript>{transcript}</p>
               </div>
             )}
 
