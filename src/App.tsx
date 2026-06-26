@@ -19,6 +19,111 @@ interface MeterInfo {
   exampleRef: string
 }
 
+// Pitch contour for each meter: pitch 1=low 2=mid 3=high, emphasis: true = stressed beat
+// Based on traditional ISKCON/Gauḍīya Vaiṣṇava chanting melodies
+type SyllablePitch = { pitch: 1 | 2 | 3; emphasis: boolean }
+
+// Anuṣṭubh has alternating odd/even pāda patterns
+const anushtubhOdd: SyllablePitch[] = [
+  // Odd pādas (1st, 3rd lines): da da da da da da(lower) da(mid) da(lowest)
+  { pitch: 2, emphasis: false }, // 1: mid
+  { pitch: 2, emphasis: false }, // 2: mid
+  { pitch: 2, emphasis: false }, // 3: mid
+  { pitch: 2, emphasis: false }, // 4: mid
+  { pitch: 2, emphasis: false }, // 5: mid
+  { pitch: 1, emphasis: true },  // 6: lower (dips down)
+  { pitch: 2, emphasis: true },  // 7: back to mid
+  { pitch: 1, emphasis: true },  // 8: lowest
+]
+const anushtubhEven: SyllablePitch[] = [
+  // Even pādas (2nd, 4th lines — resolves): da da da da da da(high) da(low) da(resolve)
+  { pitch: 2, emphasis: false }, // 1: mid
+  { pitch: 2, emphasis: false }, // 2: mid
+  { pitch: 2, emphasis: false }, // 3: mid
+  { pitch: 2, emphasis: false }, // 4: mid
+  { pitch: 2, emphasis: false }, // 5: mid
+  { pitch: 3, emphasis: true },  // 6: high (rises up)
+  { pitch: 1, emphasis: true },  // 7: low (drops down)
+  { pitch: 2, emphasis: true },  // 8: resolve back to mid
+]
+
+const meterPitchContours: Record<Meter, SyllablePitch[]> = {
+  anushtubh: [], // handled specially via odd/even — see getLinePitchContour
+  // Triṣṭubh (11): classic ŚB recitation — rise in middle, resolve at end
+  trishtubh: [
+    { pitch: 2, emphasis: true },  // 1
+    { pitch: 2, emphasis: false }, // 2
+    { pitch: 2, emphasis: false }, // 3
+    { pitch: 3, emphasis: true },  // 4: rise
+    { pitch: 3, emphasis: false }, // 5
+    { pitch: 3, emphasis: true },  // 6: peak
+    { pitch: 2, emphasis: false }, // 7: descend
+    { pitch: 2, emphasis: false }, // 8
+    { pitch: 1, emphasis: true },  // 9: low
+    { pitch: 2, emphasis: false }, // 10
+    { pitch: 2, emphasis: true },  // 11: resolve
+  ],
+  // Jagatī (12): ŚB melody — two phrases with rise-fall
+  jagati: [
+    { pitch: 2, emphasis: true },  // 1
+    { pitch: 2, emphasis: false }, // 2
+    { pitch: 3, emphasis: true },  // 3: rise
+    { pitch: 3, emphasis: false }, // 4
+    { pitch: 3, emphasis: true },  // 5: peak
+    { pitch: 2, emphasis: false }, // 6: fall — caesura
+    { pitch: 2, emphasis: true },  // 7: second phrase
+    { pitch: 2, emphasis: false }, // 8
+    { pitch: 3, emphasis: true },  // 9: rise
+    { pitch: 3, emphasis: false }, // 10
+    { pitch: 1, emphasis: true },  // 11: low
+    { pitch: 2, emphasis: true },  // 12: resolve
+  ],
+  // Vasanta-tilakā (14): Brahma-saṁhitā melody — sweeping arc
+  vasanta_tilaka: [
+    { pitch: 2, emphasis: true },  // 1
+    { pitch: 2, emphasis: false }, // 2
+    { pitch: 3, emphasis: true },  // 3: rise
+    { pitch: 3, emphasis: false }, // 4
+    { pitch: 3, emphasis: true },  // 5: high
+    { pitch: 3, emphasis: false }, // 6
+    { pitch: 2, emphasis: false }, // 7: descend — caesura
+    { pitch: 2, emphasis: true },  // 8: second phrase
+    { pitch: 2, emphasis: false }, // 9
+    { pitch: 3, emphasis: true },  // 10: rise
+    { pitch: 3, emphasis: false }, // 11
+    { pitch: 2, emphasis: false }, // 12: descend
+    { pitch: 1, emphasis: true },  // 13: low
+    { pitch: 2, emphasis: true },  // 14: resolve
+  ],
+  // Longer metres (17): Nardaṭaka-like — two long phrases
+  longer: [
+    { pitch: 2, emphasis: true },  // 1
+    { pitch: 2, emphasis: false }, // 2
+    { pitch: 2, emphasis: false }, // 3
+    { pitch: 2, emphasis: false }, // 4
+    { pitch: 3, emphasis: true },  // 5: rise
+    { pitch: 3, emphasis: false }, // 6
+    { pitch: 3, emphasis: true },  // 7: peak — caesura
+    { pitch: 2, emphasis: false }, // 8
+    { pitch: 2, emphasis: false }, // 9
+    { pitch: 2, emphasis: true },  // 10
+    { pitch: 3, emphasis: true },  // 11: rise
+    { pitch: 3, emphasis: false }, // 12
+    { pitch: 3, emphasis: false }, // 13
+    { pitch: 2, emphasis: true },  // 14: fall
+    { pitch: 2, emphasis: false }, // 15
+    { pitch: 1, emphasis: true },  // 16: low
+    { pitch: 2, emphasis: true },  // 17: resolve
+  ],
+  mantra: [], // No fixed pitch pattern
+}
+
+const pitchColors = {
+  1: { bg: 'bg-blue-100', text: 'text-blue-800', border: 'border-blue-400', label: 'Low' },
+  2: { bg: 'bg-gray-50', text: 'text-gray-700', border: 'border-gray-300', label: 'Mid' },
+  3: { bg: 'bg-rose-100', text: 'text-rose-800', border: 'border-rose-400', label: 'High' },
+}
+
 const meters: Record<Meter, MeterInfo> = {
   anushtubh: {
     name: 'Anuṣṭubh',
@@ -253,6 +358,7 @@ function App() {
   const [isSpeaking, setIsSpeaking] = useState(false)
   const [currentSpokenWord, setCurrentSpokenWord] = useState(-1)
   const [showMeterMarks, setShowMeterMarks] = useState(false)
+  const [showPitchHints, setShowPitchHints] = useState(false)
   const [tooltipWord, setTooltipWord] = useState<{ word: string; entry: GlossaryEntry; rect: DOMRect } | null>(null)
   const recognitionRef = useRef<any>(null)
   const isListeningRef = useRef(false)
@@ -962,6 +1068,14 @@ function App() {
         {lines.map((line, lineIdx) => {
           const lineWordSyls = lineSyllables[lineIdx]
 
+          // Count syllables before each word so we can index into pitch contour
+          // Anuṣṭubh alternates odd/even pāda patterns
+          const pitchContour = selectedMeter === 'anushtubh'
+            ? (lineIdx % 2 === 0 ? anushtubhOdd : anushtubhEven)
+            : meterPitchContours[selectedMeter]
+          const hasPitch = showPitchHints && pitchContour.length > 0
+          let lineSylOffset = 0
+
           return (
           <div key={lineIdx} className="flex flex-wrap items-start gap-1">
             <span className="text-xs text-gray-400 mr-2 w-6 mt-1.5">{lineIdx + 1}.</span>
@@ -982,18 +1096,57 @@ function App() {
 
               const wordIsKnown = isWordKnown(knownWords, word)
               const wordSyls = lineWordSyls[wordInLineIdx]
+              const wordSylStart = lineSylOffset
+              lineSylOffset += wordSyls.length
               const isLastWordInLine = wordInLineIdx === line.length - 1
               const nextWordSyls = !isLastWordInLine ? lineWordSyls[wordInLineIdx + 1] : undefined
               const scansion = showMeterMarks ? getWordScansion(wordSyls, isLastWordInLine, nextWordSyls) : null
 
-              // Helper: render a single syllable column (text + optional scansion mark)
-              const renderSylColumn = (sylText: string, si: number, totalSyls: number, statusClass: string) => (
-                <span key={si} className={`inline-flex flex-col items-center ${statusClass} ${si === 0 ? 'rounded-l' : ''} ${si === totalSyls - 1 ? 'rounded-r' : ''} px-0.5`}>
-                  <span className="text-xl leading-tight">{sylText}</span>
+              // Helper: render a single syllable column (text + optional scansion/pitch marks)
+              const renderSylColumn = (sylText: string, si: number, totalSyls: number, statusClass: string) => {
+                // Pitch data for this syllable
+                const sylPosInLine = wordSylStart + si
+                const pitchData = hasPitch && sylPosInLine < pitchContour.length ? pitchContour[sylPosInLine] : null
+
+                // When scansion is on and no speech match active, color syllables by weight
+                const meterColorClass = scansion && !statusClass
+                  ? scansion[si].weight === 'guru'
+                    ? 'bg-indigo-50 border-b-2 border-indigo-400'
+                    : 'bg-amber-50 border-b-2 border-amber-300'
+                  : ''
+
+                // Pitch background (only when pitch is on and no speech/scansion color)
+                const pitchBg = pitchData && !statusClass && !meterColorClass
+                  ? pitchColors[pitchData.pitch].bg
+                  : ''
+                const pitchTextColor = pitchData && !statusClass
+                  ? pitchColors[pitchData.pitch].text
+                  : ''
+
+                // Pitch height indicator (visual position offset)
+                const pitchOffset = pitchData
+                  ? { 3: '-4px', 2: '0px', 1: '4px' }[pitchData.pitch]
+                  : '0px'
+
+                return (
+                <span key={si} className={`inline-flex flex-col items-center ${statusClass || meterColorClass || pitchBg} ${si === 0 ? 'rounded-l' : ''} ${si === totalSyls - 1 ? 'rounded-r' : ''} px-0.5`}
+                  style={hasPitch ? { position: 'relative', top: pitchOffset, transition: 'top 0.2s ease' } : undefined}
+                >
+                  <span className={`text-xl leading-tight ${pitchTextColor} ${pitchData?.emphasis ? 'font-bold' : ''} ${scansion && !statusClass && !pitchData ? (scansion[si].weight === 'guru' ? 'text-indigo-800 font-semibold' : 'text-amber-700') : ''}`}>{sylText}</span>
+                  {/* Pitch arrow indicator */}
+                  {pitchData && (
+                    <span
+                      className={`text-center leading-none mt-0.5 ${pitchColors[pitchData.pitch].text} ${pitchData.emphasis ? 'font-bold' : ''}`}
+                      style={{ fontSize: '10px' }}
+                      title={`${pitchColors[pitchData.pitch].label} pitch${pitchData.emphasis ? ' (stressed)' : ''}`}
+                    >
+                      {pitchData.pitch === 3 ? '▲' : pitchData.pitch === 1 ? '▼' : '●'}{pitchData.emphasis ? '!' : ''}
+                    </span>
+                  )}
                   {scansion && (
                     <span
                       className={`text-center leading-none mt-0.5 cursor-help ${
-                        scansion[si].weight === 'guru' ? 'text-purple-600 font-bold' : 'text-gray-400'
+                        scansion[si].weight === 'guru' ? 'text-indigo-600 font-bold' : 'text-amber-500'
                       }`}
                       style={{ fontSize: '13px' }}
                       title={`${scansion[si].weight === 'guru' ? 'Guru (heavy)' : 'Laghu (light)'}: ${scansion[si].reason}`}
@@ -1002,7 +1155,8 @@ function App() {
                     </span>
                   )}
                 </span>
-              )
+                )
+              }
 
               // Word click handler: play audio AND show tooltip
               const handleWordClick = (e: React.MouseEvent) => {
@@ -1359,6 +1513,15 @@ function App() {
                 >
                   <span style={{ fontFamily: 'serif', fontSize: '11px' }}>◡—</span>
                 </button>
+                {selectedMeter !== 'mantra' && (
+                  <button
+                    onClick={() => setShowPitchHints(!showPitchHints)}
+                    className={`chip ${showPitchHints ? 'chip-active' : 'chip-inactive'}`}
+                    title={showPitchHints ? 'Hide pitch hints' : 'Show pitch & rhythm for this meter'}
+                  >
+                    <span style={{ fontSize: '11px' }}>♫</span>
+                  </button>
+                )}
                 <button
                   onClick={() => isSpeaking ? stopPlayback() : speakWithMeter(sloka, selectedMeter)}
                   disabled={isGenerating}
@@ -1368,6 +1531,17 @@ function App() {
                 </button>
               </div>
             </div>
+
+            {/* Pitch legend */}
+            {showPitchHints && selectedMeter !== 'mantra' && (
+              <div className="flex items-center gap-3 px-3 md:px-5 py-1.5 bg-gray-50/80 border-b border-gray-100 text-[10px]">
+                <span className="text-gray-400 font-medium">Pitch:</span>
+                <span className="flex items-center gap-1"><span className="inline-block w-2.5 h-2.5 rounded bg-rose-100 border border-rose-300"></span><span className="text-rose-700">▲ High</span></span>
+                <span className="flex items-center gap-1"><span className="inline-block w-2.5 h-2.5 rounded bg-gray-100 border border-gray-300"></span><span className="text-gray-600">● Mid</span></span>
+                <span className="flex items-center gap-1"><span className="inline-block w-2.5 h-2.5 rounded bg-blue-100 border border-blue-300"></span><span className="text-blue-700">▼ Low</span></span>
+                <span className="text-gray-400 ml-1">! = stressed</span>
+              </div>
+            )}
 
             {/* Verse text */}
             <div className="p-3 md:p-5" onClick={(e) => { if (e.target === e.currentTarget) setTooltipWord(null) }}>
