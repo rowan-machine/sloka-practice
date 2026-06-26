@@ -381,16 +381,12 @@ function App() {
     const recognition = new SpeechRecognition()
     const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent)
     const isSamsung = /Samsung/i.test(navigator.userAgent)
-    const isIOS = /iPhone|iPad|iPod/i.test(navigator.userAgent)
     recognition.continuous = !isMobile
-    // Samsung doesn't support interimResults well; iOS is fine
-    recognition.interimResults = !isSamsung
-    // Desktop: hi-IN returns Devanagari which we transliterate — best accuracy
-    // iOS Safari: sa-IN works (confirmed by user)
-    // Samsung/Android: hi-IN for best coverage
-    recognition.lang = isIOS ? 'sa-IN' : 'hi-IN'
+    recognition.interimResults = true
+    // hi-IN works on desktop (confirmed). Use same everywhere.
+    recognition.lang = 'hi-IN'
     recognition.maxAlternatives = 3
-    console.log('[SR] setup:', { isMobile, isSamsung, isIOS, lang: recognition.lang, continuous: recognition.continuous })
+    console.log('[SR] setup:', { isMobile, isSamsung, lang: recognition.lang, continuous: recognition.continuous })
 
     recognition.onstart = () => {
       console.log('[SR] onstart fired')
