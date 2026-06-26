@@ -377,16 +377,20 @@ function App() {
   useEffect(() => {
     if (!('webkitSpeechRecognition' in window || 'SpeechRecognition' in window)) return
 
-    const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition
+    const SpeechRecognition = (window as any).webkitSpeechRecognition || (window as any).SpeechRecognition
     const recognition = new SpeechRecognition()
     const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent)
+    const isSamsung = /Samsung/i.test(navigator.userAgent)
+    const isIOS = /iPhone|iPad|iPod/i.test(navigator.userAgent)
     recognition.continuous = !isMobile
-    recognition.interimResults = true
-    // Desktop: hi-IN works great for Sanskrit (returns Devanagari, we transliterate)
-    // Mobile: en-US is the most reliable — at least captures phonemes
-    recognition.lang = isMobile ? 'en-US' : 'hi-IN'
+    // Samsung doesn't support interimResults well; iOS is fine
+    recognition.interimResults = !isSamsung
+    // Desktop: hi-IN returns Devanagari which we transliterate — best accuracy
+    // iOS Safari: sa-IN works (confirmed by user)
+    // Samsung/Android: hi-IN for best coverage
+    recognition.lang = isIOS ? 'sa-IN' : 'hi-IN'
     recognition.maxAlternatives = 3
-    console.log('[SR] setup:', { isMobile, lang: recognition.lang, continuous: recognition.continuous })
+    console.log('[SR] setup:', { isMobile, isSamsung, isIOS, lang: recognition.lang, continuous: recognition.continuous })
 
     recognition.onstart = () => {
       console.log('[SR] onstart fired')
