@@ -381,9 +381,9 @@ function App() {
     const recognition = new SpeechRecognition()
     recognition.continuous = false
     recognition.interimResults = true
-    // Use Sanskrit if available, fallback to en-IN
-    // Mobile Chrome rejects Sanskrit words as 'no speech' with en-IN
-    recognition.lang = 'sa-IN'
+    // hi-IN (Hindi) works on both desktop and mobile for Sanskrit words
+    // Returns Devanagari text which we transliterate before comparison
+    recognition.lang = 'hi-IN'
     recognition.maxAlternatives = 3
 
     recognition.onstart = () => {
@@ -500,30 +500,70 @@ function App() {
     return syllables.length > 0 ? syllables : [word]
   }
 
-  const normalize = (s: string) => s.toLowerCase()
-    .replace(/[।॥\-,\.!?'":;''/]/g, '')
-    // Long vowels → short
-    .replace(/ā/g, 'a').replace(/ī/g, 'i').replace(/ū/g, 'u')
-    // Special vowels
-    .replace(/ṛ/g, 'ri').replace(/ṝ/g, 'ri').replace(/ḷ/g, 'li')
-    // Nasals
-    .replace(/ṁ/g, 'm').replace(/ṃ/g, 'm').replace(/ṅ/g, 'ng')
-    .replace(/ñ/g, 'ny').replace(/ṇ/g, 'n')
-    // Sibilants
-    .replace(/ś/g, 'sh').replace(/ṣ/g, 'sh')
-    // Aspirates — reduce to base consonant for comparison
-    .replace(/kh/g, 'k').replace(/gh/g, 'g')
-    .replace(/ch/g, 'ch').replace(/jh/g, 'j')
-    .replace(/ṭh/g, 't').replace(/ḍh/g, 'd')
-    .replace(/th/g, 't').replace(/dh/g, 'd')
-    .replace(/ph/g, 'p').replace(/bh/g, 'b')
-    // Retroflexes → dental
-    .replace(/ṭ/g, 't').replace(/ḍ/g, 'd')
-    // Visarga
-    .replace(/ḥ/g, 'h')
-    // Common speech recognition outputs
-    .replace(/aa/g, 'a').replace(/ee/g, 'i').replace(/oo/g, 'u')
-    .trim()
+  // Devanagari → Latin transliteration for speech recognition output
+  const devanagariToLatin = (s: string): string => {
+    const map: Record<string, string> = {
+      'अ': 'a', 'आ': 'a', 'इ': 'i', 'ई': 'i', 'उ': 'u', 'ऊ': 'u',
+      'ऋ': 'ri', 'ए': 'e', 'ऐ': 'ai', 'ओ': 'o', 'औ': 'au', 'अं': 'am', 'अः': 'ah',
+      'क': 'ka', 'ख': 'ka', 'ग': 'ga', 'घ': 'ga', 'ङ': 'nga',
+      'च': 'cha', 'छ': 'cha', 'ज': 'ja', 'झ': 'ja', 'ञ': 'nya',
+      'ट': 'ta', 'ठ': 'ta', 'ड': 'da', 'ढ': 'da', 'ण': 'na',
+      'त': 'ta', 'थ': 'ta', 'द': 'da', 'ध': 'da', 'न': 'na',
+      'प': 'pa', 'फ': 'pa', 'ब': 'ba', 'भ': 'ba', 'म': 'ma',
+      'य': 'ya', 'र': 'ra', 'ल': 'la', 'व': 'va', 'श': 'sha',
+      'ष': 'sha', 'स': 'sa', 'ह': 'ha',
+      'ा': 'a', 'ि': 'i', 'ी': 'i', 'ु': 'u', 'ू': 'u',
+      'ृ': 'ri', 'े': 'e', 'ै': 'ai', 'ो': 'o', 'ौ': 'au',
+      'ं': 'm', 'ः': 'h', 'ँ': 'm',
+      '्': '', // virama — suppresses inherent 'a'
+      'ॐ': 'om',
+    }
+    let result = ''
+    let i = 0
+    while (i < s.length) {
+      // Try two-char match first
+      if (i + 1 < s.length && map[s.slice(i, i + 2)] !== undefined) {
+        result += map[s.slice(i, i + 2)]
+        i += 2
+      } else if (map[s[i]] !== undefined) {
+        result += map[s[i]]
+        i++
+      } else {
+        result += s[i]
+        i++
+      }
+    }
+    return result
+  }
+
+  const normalize = (s: string) => {
+    // First transliterate any Devanagari to Latin
+    let text = /[\u0900-\u097F]/.test(s) ? devanagariToLatin(s) : s
+    return text.toLowerCase()
+      .replace(/[।॥\-,\.!?'":;''/]/g, '')
+      // Long vowels → short
+      .replace(/ā/g, 'a').replace(/ī/g, 'i').replace(/ū/g, 'u')
+      // Special vowels
+      .replace(/ṛ/g, 'ri').replace(/ṝ/g, 'ri').replace(/ḷ/g, 'li')
+      // Nasals
+      .replace(/ṁ/g, 'm').replace(/ṃ/g, 'm').replace(/ṅ/g, 'ng')
+      .replace(/ñ/g, 'ny').replace(/ṇ/g, 'n')
+      // Sibilants
+      .replace(/ś/g, 'sh').replace(/ṣ/g, 'sh')
+      // Aspirates — reduce to base consonant for comparison
+      .replace(/kh/g, 'k').replace(/gh/g, 'g')
+      .replace(/ch/g, 'ch').replace(/jh/g, 'j')
+      .replace(/ṭh/g, 't').replace(/ḍh/g, 'd')
+      .replace(/th/g, 't').replace(/dh/g, 'd')
+      .replace(/ph/g, 'p').replace(/bh/g, 'b')
+      // Retroflexes → dental
+      .replace(/ṭ/g, 't').replace(/ḍ/g, 'd')
+      // Visarga
+      .replace(/ḥ/g, 'h')
+      // Common speech recognition outputs
+      .replace(/aa/g, 'a').replace(/ee/g, 'i').replace(/oo/g, 'u')
+      .trim()
+  }
 
   // Best-match alignment: find the best śloka word for each spoken word
   // using a sliding window, so a missed/extra word doesn't ruin the rest
