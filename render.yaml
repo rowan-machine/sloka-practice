@@ -5,9 +5,7 @@ services:
     buildCommand: npm install
     startCommand: npx tsx server/index.ts
     envVars:
-      - key: ELEVENLABS_API_KEY
-        sync: false
-      - key: ELEVENLABS_VOICE_ID
-        sync: false
       - key: PORT
         value: 10000
+      - key: ALLOWED_ORIGINS
+        sync: false

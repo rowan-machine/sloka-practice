@@ -730,9 +730,13 @@ function App() {
     playbackCancelledRef.current = false
 
     try {
+      const userKey = getStoredApiKey()
       const response = await fetch(`${import.meta.env.VITE_API_URL || ''}/api/speak`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          ...(userKey ? { 'x-api-key': userKey, 'x-voice-id': getStoredVoiceId() } : {})
+        },
         body: JSON.stringify({ text, meter })
       })
 
