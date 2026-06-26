@@ -384,7 +384,16 @@ function App() {
     recognition.lang = 'en-IN'
     recognition.maxAlternatives = 3
 
+    recognition.onstart = () => {
+      console.log('[SR] onstart fired')
+    }
+
+    recognition.onaudiostart = () => {
+      console.log('[SR] onaudiostart — microphone active')
+    }
+
     recognition.onresult = (event: any) => {
+      console.log('[SR] onresult fired, results:', event.results.length)
       let finalized = ''
       let interim = ''
       for (let i = 0; i < event.results.length; i++) {
@@ -394,21 +403,22 @@ function App() {
           interim += event.results[i][0].transcript + ' '
         }
       }
-      // Use finalized if available, otherwise show interim
       const text = finalized.trim() || interim.trim()
+      console.log('[SR] text:', text)
       if (text) {
         setTranscript(text)
       }
     }
 
     recognition.onerror = (event: any) => {
-      console.error('Speech recognition error:', event.error)
+      console.error('[SR] onerror:', event.error)
       if (event.error === 'not-allowed' || event.error === 'service-not-available') {
         setIsListening(false)
       }
     }
 
     recognition.onend = () => {
+      console.log('[SR] onend fired, still listening:', isListeningRef.current)
       if (isListeningRef.current) {
         try { recognition.start() } catch (_) {}
       }
@@ -689,14 +699,23 @@ function App() {
   }, [transcript, compareWords])
 
   const startListening = () => {
+    console.log('[SR] startListening called, ref:', !!recognitionRef.current)
     if (recognitionRef.current) {
       setTranscript('')
       setWordMatches([])
       accumulatedTranscriptRef.current = ''
       setIsListening(true)
       lastRecordingRef.current = undefined
-      startRecording()
-      try { recognitionRef.current.start() } catch (_) {}
+      try {
+        recognitionRef.current.start()
+        console.log('[SR] recognition.start() succeeded')
+      } catch (e) {
+        console.error('[SR] recognition.start() threw:', e)
+      }
+      // Delay recording to avoid mic conflict with speech recognition
+      setTimeout(() => startRecording(), 500)
+    } else {
+      console.warn('[SR] recognitionRef is null — Speech API not available')
     }
   }
 
