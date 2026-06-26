@@ -1329,7 +1329,10 @@ function App() {
                 })()}
                 <p className="text-xs text-gray-500 italic line-clamp-2">{selectedEntry.translation}</p>
               </div>
-              <button onClick={() => setShowLibrary(true)} className="chip chip-inactive shrink-0">Change</button>
+              <div className="flex flex-col gap-1.5 shrink-0">
+                <button onClick={() => setShowLibrary(true)} className="chip chip-inactive">Change</button>
+                <button onClick={() => { setSelectedEntry(null); setSloka(''); setWordMatches([]); setTranscript(''); localStorage.removeItem('sloka_last_verse') }} className="chip chip-inactive text-[10px]">✕ Clear</button>
+              </div>
             </div>
           </div>
         )}
