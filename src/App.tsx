@@ -388,14 +388,20 @@ function App() {
 
     recognition.onerror = (event: any) => {
       console.error('Speech recognition error:', event.error)
-      if (event.error !== 'no-speech') {
+      if (event.error === 'not-allowed' || event.error === 'service-not-available') {
         setIsListening(false)
       }
+      // 'no-speech' and 'aborted' are normal on mobile — just restart
     }
 
     recognition.onend = () => {
       if (isListeningRef.current) {
-        try { recognition.start() } catch (_) {}
+        // Small delay before restart — mobile Chrome needs this
+        setTimeout(() => {
+          if (isListeningRef.current) {
+            try { recognition.start() } catch (_) {}
+          }
+        }, 100)
       }
     }
 
@@ -1461,6 +1467,13 @@ function App() {
 
             {!sloka && !selectedEntry && (
               <p className="text-xs text-gray-400 text-center mt-3">Select a verse from the library to begin</p>
+            )}
+
+            {isListening && transcript && (
+              <div className="mt-2 p-2 bg-gray-50 border border-gray-200 rounded-lg">
+                <p className="text-[11px] text-gray-400 mb-0.5">Heard:</p>
+                <p className="text-xs text-gray-600 italic">{transcript}</p>
+              </div>
             )}
 
             {typeof window !== 'undefined' && !('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window) && (
