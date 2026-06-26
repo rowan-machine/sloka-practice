@@ -394,10 +394,10 @@ function App() {
           interim += event.results[i][0].transcript + ' '
         }
       }
-      // Combine accumulated (from previous sessions) + current finalized + interim
-      const fullText = (accumulatedTranscriptRef.current + ' ' + finalized + interim).trim()
-      if (fullText) {
-        setTranscript(fullText)
+      // Use finalized if available, otherwise show interim
+      const text = finalized.trim() || interim.trim()
+      if (text) {
+        setTranscript(text)
       }
     }
 
@@ -410,17 +410,7 @@ function App() {
 
     recognition.onend = () => {
       if (isListeningRef.current) {
-        // Save finalized text before restart
-        const currentTranscript = document.querySelector('[data-transcript]')?.textContent || ''
-        if (currentTranscript) {
-          accumulatedTranscriptRef.current = currentTranscript
-        }
-        // Restart with delay for mobile compatibility
-        setTimeout(() => {
-          if (isListeningRef.current) {
-            try { recognition.start() } catch (_) {}
-          }
-        }, 150)
+        try { recognition.start() } catch (_) {}
       }
     }
 
