@@ -379,9 +379,11 @@ function App() {
 
     const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition
     const recognition = new SpeechRecognition()
-    recognition.continuous = true
+    recognition.continuous = false
     recognition.interimResults = true
-    recognition.lang = 'en-IN'
+    // Use Sanskrit if available, fallback to en-IN
+    // Mobile Chrome rejects Sanskrit words as 'no speech' with en-IN
+    recognition.lang = 'sa-IN'
     recognition.maxAlternatives = 3
 
     recognition.onstart = () => {
@@ -403,7 +405,11 @@ function App() {
           interim += event.results[i][0].transcript + ' '
         }
       }
-      const text = finalized.trim() || interim.trim()
+      // With continuous=false, accumulate finalized text across restarts
+      if (finalized.trim()) {
+        accumulatedTranscriptRef.current += ' ' + finalized.trim()
+      }
+      const text = (accumulatedTranscriptRef.current + ' ' + interim).trim()
       console.log('[SR] text:', text)
       if (text) {
         setTranscript(text)
@@ -420,7 +426,11 @@ function App() {
     recognition.onend = () => {
       console.log('[SR] onend fired, still listening:', isListeningRef.current)
       if (isListeningRef.current) {
-        try { recognition.start() } catch (_) {}
+        setTimeout(() => {
+          if (isListeningRef.current) {
+            try { recognition.start() } catch (_) {}
+          }
+        }, 100)
       }
     }
 
