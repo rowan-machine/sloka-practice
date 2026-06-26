@@ -1294,10 +1294,17 @@ function App() {
                 </summary>
                 <textarea
                   value={selectedEntry ? '' : sloka}
-                  onChange={(e) => { setSloka(e.target.value); setSelectedEntry(null); setWordMatches([]); setTranscript('') }}
+                  onChange={(e) => { setSloka(e.target.value); setSelectedEntry(null); setWordMatches([]); setTranscript(''); localStorage.removeItem('sloka_last_verse') }}
                   className="mt-2 w-full h-24 p-3 border border-gray-200 rounded-xl focus:border-purple-500 focus:outline-none text-sm font-serif resize-y bg-white"
                   placeholder="Paste Sanskrit śloka here (IAST romanization)..."
                 />
+                <button
+                  onClick={() => { if (sloka.trim()) setShowLibrary(false) }}
+                  disabled={!sloka.trim() || !!selectedEntry}
+                  className="mt-2 px-3 py-1.5 bg-purple-600 text-white text-xs font-medium rounded-lg hover:bg-purple-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                >
+                  Use this text →
+                </button>
               </details>
             </div>
           </section>
