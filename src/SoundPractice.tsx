@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react'
 import { soundCategories, extractSoundsFromWord, type SoundCategory, type SoundScore, type KnownWord, type WordStats, saveScores, getAccuracy, recordResult, addKnownWord, removeKnownWord, isWordKnown, getKnownSoundCoverage, getWordAccuracy, getWordsNeedingWork } from './sanskritSounds'
+import { getStoredApiKey } from './Settings'
 
 interface SoundPracticeProps {
   onBack: () => void
@@ -118,8 +119,30 @@ export default function SoundPractice({ onBack, scores, setScores, knownWords, s
   const speakWord = async (word: string) => {
     setIsSpeaking(true)
     setSpeakingWord(word)
+    const done = () => { setIsSpeaking(false); setSpeakingWord(null) }
+
+    // Try user's local ElevenLabs key first
+    const userKey = getStoredApiKey()
+    if (userKey) {
+      try {
+        const resp = await fetch('https://api.elevenlabs.io/v1/text-to-speech/XB0fDUnXU5powFXDhCwa', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'xi-api-key': userKey },
+          body: JSON.stringify({ text: word, model_id: 'eleven_multilingual_v2', voice_settings: { stability: 0.45, similarity_boost: 0.75, style: 0.75 } })
+        })
+        if (resp.ok) {
+          const blob = await resp.blob()
+          const audio = new Audio(URL.createObjectURL(blob))
+          audio.onended = done
+          await audio.play()
+          return
+        }
+      } catch { /* try server */ }
+    }
+
+    // Try backend server
     try {
-      const resp = await fetch('http://localhost:3001/api/speak-word', {
+      const resp = await fetch(`${import.meta.env.VITE_API_URL || ''}/api/speak-word`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ word })
@@ -127,13 +150,20 @@ export default function SoundPractice({ onBack, scores, setScores, knownWords, s
       const data = await resp.json()
       if (data.audioContent) {
         const audio = new Audio(`data:audio/mp3;base64,${data.audioContent}`)
-        audio.onended = () => { setIsSpeaking(false); setSpeakingWord(null) }
+        audio.onended = done
         await audio.play()
-      } else { setIsSpeaking(false); setSpeakingWord(null) }
-    } catch (err) {
-      console.error('TTS error:', err)
-      setIsSpeaking(false); setSpeakingWord(null)
-    }
+        return
+      }
+    } catch { /* server unavailable */ }
+
+    // Browser fallback
+    if ('speechSynthesis' in window) {
+      const utter = new SpeechSynthesisUtterance(word)
+      utter.lang = 'hi-IN'
+      utter.rate = 0.8
+      utter.onend = done
+      speechSynthesis.speak(utter)
+    } else { done() }
   }
 
   const listen = () => {

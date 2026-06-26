@@ -457,7 +457,7 @@ export function recordWordAttempt(
     date: Date.now(),
     status,
     transcript,
-    recordingUrl: status !== 'green' ? recordingUrl : undefined // only store recordings for non-perfect
+    recordingUrl // store recordings for all attempts so users can compare
   }
 
   existing.attempts++

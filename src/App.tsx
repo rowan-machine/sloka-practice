@@ -3,7 +3,10 @@ import './App.css'
 import { slokaLibrary, difficultyLabels, difficultyColors, type Difficulty, type SlokaEntry } from './slokaLibrary'
 import { loadScores, saveScores, recordResult, loadKnownWords, addKnownWord, isWordKnown, loadWordStats, recordWordAttempt, loadSlokaProgress, recordSlokaAttempt, type SoundScore, type KnownWord, type WordStats, type SlokaProgress } from './sanskritSounds'
 import { getUserDifficulty } from './difficultyScorer'
+import { lookupWord, type GlossaryEntry } from './sanskritGlossary'
 import SoundPractice from './SoundPractice'
+import PronunciationGuide from './PronunciationGuide'
+import Settings, { getStoredApiKey, getStoredVoiceId } from './Settings'
 
 type Meter = 'anushtubh' | 'trishtubh' | 'jagati' | 'vasanta_tilaka' | 'longer' | 'mantra'
 
@@ -90,7 +93,12 @@ function countSanskritSyllables(word: string): number {
 //   2. It ends with a consonant cluster (saṁyoga — vowel followed by 2+ consonants before next vowel)
 //   3. It ends with visarga (ḥ) or anusvāra (ṁ/ṃ)
 // Otherwise it is laghu.
-function classifySyllableWeight(syllable: string, nextSyllable?: string): 'guru' | 'laghu' {
+interface SyllableWeight {
+  weight: 'guru' | 'laghu'
+  reason: string
+}
+
+function classifySyllableWeight(syllable: string, nextSyllable?: string): SyllableWeight {
   const lower = syllable.toLowerCase()
 
   // Check for long vowels in the syllable
@@ -99,15 +107,25 @@ function classifySyllableWeight(syllable: string, nextSyllable?: string): 'guru'
   const diphthongs = /(?:ai|au)/i
   const naturallyLong = /[eo]/i  // e and o are always long in Sanskrit
 
-  if (longVowels.test(lower)) return 'guru'
-  if (diphthongs.test(lower)) return 'guru'
-  if (naturallyLong.test(lower)) return 'guru'
+  if (longVowels.test(lower)) {
+    const v = lower.match(/[āīūṝ]/i)![0]
+    const names: Record<string, string> = { 'ā': 'ā', 'ī': 'ī', 'ū': 'ū', 'ṝ': 'ṝ' }
+    return { weight: 'guru', reason: `Long vowel ${names[v.toLowerCase()] || v} (macron = long)` }
+  }
+  if (diphthongs.test(lower)) {
+    const v = lower.match(/ai|au/i)![0]
+    return { weight: 'guru', reason: `${v} is always long in Sanskrit (compound vowel)` }
+  }
+  if (naturallyLong.test(lower)) {
+    const v = lower.match(/[eo]/i)![0]
+    return { weight: 'guru', reason: `${v} is always long in Sanskrit — no short ${v} exists` }
+  }
 
   // Check for visarga or anusvāra
-  if (/[ḥṁṃ]/.test(lower)) return 'guru'
+  if (/ḥ/.test(lower)) return { weight: 'guru', reason: 'Contains visarga (ḥ) — always heavy' }
+  if (/[ṁṃ]/.test(lower)) return { weight: 'guru', reason: 'Contains anusvāra (ṁ) — always heavy' }
 
   // Check if syllable ends with consonant(s) after the vowel (position makes heavy)
-  // Extract trailing consonants after the last vowel
   const vowelPattern = /[aāiīuūṛṝḷeaioau]/gi
   let lastVowelEnd = 0
   let m
@@ -117,20 +135,26 @@ function classifySyllableWeight(syllable: string, nextSyllable?: string): 'guru'
   const trailingConsonants = lower.slice(lastVowelEnd).replace(/[^a-zḍṭṅñṇśṣṛṝḷḥṁṃ]/gi, '')
 
   // If this syllable has trailing consonants, it's heavy by position
-  if (trailingConsonants.length >= 1) return 'guru'
+  if (trailingConsonants.length >= 1) return { weight: 'guru', reason: `Ends in consonant "${trailingConsonants}" — heavy by position (saṁyoga)` }
 
   // If the NEXT syllable starts with 2+ consonants, this syllable is heavy by position
   if (nextSyllable) {
     const nextLower = nextSyllable.toLowerCase()
     const firstVowelIdx = nextLower.search(/[aāiīuūṛṝḷeaioau]/i)
-    if (firstVowelIdx > 1) return 'guru' // 2+ consonants before first vowel
+    if (firstVowelIdx > 1) {
+      const cluster = nextLower.slice(0, firstVowelIdx)
+      return { weight: 'guru', reason: `Next syllable starts with cluster "${cluster}" — heavy by position` }
+    }
   }
 
-  return 'laghu'
+  // Find the vowel to name it in the reason
+  const vowelMatch = lower.match(/[aāiīuūṛṝḷ]/i)
+  const shortV = vowelMatch ? vowelMatch[0] : 'a'
+  return { weight: 'laghu', reason: `Short vowel ${shortV}` }
 }
 
 // Get scansion for all syllables of a word
-function getWordScansion(syllables: string[], isLastWordInLine: boolean, nextWordSyllables?: string[]): ('guru' | 'laghu')[] {
+function getWordScansion(syllables: string[], isLastWordInLine: boolean, nextWordSyllables?: string[]): SyllableWeight[] {
   return syllables.map((syl, i) => {
     let nextSyl: string | undefined
     if (i + 1 < syllables.length) {
@@ -213,7 +237,7 @@ function splitIntoLines(text: string, syllablesPerLine: number): string[][] {
 }
 
 function App() {
-  const [page, setPage] = useState<'practice' | 'sounds'>('practice')
+  const [page, setPage] = useState<'practice' | 'sounds' | 'guide' | 'settings'>('practice')
   const [sloka, setSloka] = useState('')
   const [transcript, setTranscript] = useState('')
   const [isListening, setIsListening] = useState(false)
@@ -222,6 +246,7 @@ function App() {
   const [isSpeaking, setIsSpeaking] = useState(false)
   const [currentSpokenWord, setCurrentSpokenWord] = useState(-1)
   const [showMeterMarks, setShowMeterMarks] = useState(false)
+  const [tooltipWord, setTooltipWord] = useState<{ word: string; entry: GlossaryEntry; rect: DOMRect } | null>(null)
   const recognitionRef = useRef<any>(null)
   const isListeningRef = useRef(false)
 
@@ -272,7 +297,7 @@ function App() {
   const [librarySearch, setLibrarySearch] = useState('')
 
   // Collect unique sources for filter
-  const allSources: string[] = Array.from(new Set(slokaLibrary.map(s => s.source))).sort()
+  const allSources: string[] = Array.from(new Set<string>(slokaLibrary.map(s => s.source))).sort()
   // Group similar sources for cleaner UI
   const sourceGroups: Record<string, string[]> = {
     'Bhagavad-gītā': allSources.filter((s: string) => s === 'Bhagavad-gītā'),
@@ -318,6 +343,7 @@ function App() {
     setWordMatches([])
     setTranscript('')
     setShowLibrary(false)
+    setTooltipWord(null)
   }
 
   // Auto-detect meter when sloka changes
@@ -370,16 +396,66 @@ function App() {
     recognitionRef.current = recognition
   }, [])
 
-  // Split a word into syllables based on vowel nuclei
+  // Split a word into syllables based on vowel nuclei.
+  // Sanskrit rule: when consonants sit between two vowels, only the FIRST
+  // consonant stays as the coda of the preceding syllable; the rest become
+  // the onset of the next syllable.  E.g. bhakty-upahṛtam → bhak-tyu-pa-hṛ-tam
   const splitSyllables = (word: string): string[] => {
-    // Match consonant clusters + vowel (+ optional trailing consonants at end)
-    const syllables: string[] = []
-    const re = /[^aāiīuūṛṝḷeaioau]*[aāiīuūṛṝḷeaioau]+[^aāiīuūṛṝḷeaioau]*/gi
-    let match
-    while ((match = re.exec(word)) !== null) {
-      syllables.push(match[0])
+    const vowelRe = /[aāiīuūṛṝḷeoau]/i
+    const isVowel = (ch: string) => vowelRe.test(ch)
+
+    // 1. Find vowel positions
+    const vowelPositions: number[] = []
+    for (let i = 0; i < word.length; i++) {
+      if (isVowel(word[i])) vowelPositions.push(i)
     }
-    // If regex didn't match anything, return the whole word
+    if (vowelPositions.length === 0) return [word]
+
+    // 2. Build raw syllable boundaries around each vowel
+    const syllables: string[] = []
+    for (let vi = 0; vi < vowelPositions.length; vi++) {
+      let start: number
+      let end: number
+
+      if (vi === 0) {
+        // First syllable starts at beginning of word
+        start = 0
+      } else {
+        // Find consonants between previous vowel and this vowel
+        const prevVowelEnd = vowelPositions[vi - 1] + 1
+        const thisVowel = vowelPositions[vi]
+        const consonantsBetween = thisVowel - prevVowelEnd
+
+        if (consonantsBetween <= 1) {
+          // 0 or 1 consonant: all go to this syllable's onset
+          start = prevVowelEnd
+        } else {
+          // 2+ consonants: first stays with previous syllable (coda),
+          // rest become onset of this syllable
+          start = prevVowelEnd + 1
+        }
+      }
+
+      if (vi === vowelPositions.length - 1) {
+        // Last syllable takes everything to end
+        end = word.length
+      } else {
+        // Tentatively end right after the vowel; the next iteration
+        // will claim consonants as needed
+        const nextVowel = vowelPositions[vi + 1]
+        const consonantsAfter = nextVowel - vowelPositions[vi] - 1
+        if (consonantsAfter <= 1) {
+          end = vowelPositions[vi] + 1
+        } else {
+          // Keep first consonant as coda
+          end = vowelPositions[vi] + 2
+        }
+      }
+
+      syllables.push(word.slice(start, end))
+    }
+
+    // If regex-fallback produced nothing meaningful, return whole word
     return syllables.length > 0 ? syllables : [word]
   }
 
@@ -654,7 +730,7 @@ function App() {
     playbackCancelledRef.current = false
 
     try {
-      const response = await fetch('http://localhost:3001/api/speak', {
+      const response = await fetch(`${import.meta.env.VITE_API_URL || ''}/api/speak`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ text, meter })
@@ -715,8 +791,36 @@ function App() {
   }
 
   const speakWord = async (word: string) => {
+    // Try user's local ElevenLabs key first (direct API call, no server needed)
+    const userKey = getStoredApiKey()
+    if (userKey) {
+      try {
+        const resp = await fetch('https://api.elevenlabs.io/v1/text-to-speech/XB0fDUnXU5powFXDhCwa', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'xi-api-key': userKey
+          },
+          body: JSON.stringify({
+            text: word,
+            model_id: 'eleven_multilingual_v2',
+            voice_settings: { stability: 0.45, similarity_boost: 0.75, style: 0.75 }
+          })
+        })
+        if (resp.ok) {
+          const blob = await resp.blob()
+          const audio = new Audio(URL.createObjectURL(blob))
+          await audio.play()
+          return
+        }
+      } catch {
+        // Direct API failed, try server
+      }
+    }
+
+    // Try backend server
     try {
-      const resp = await fetch('http://localhost:3001/api/speak-word', {
+      const resp = await fetch(`${import.meta.env.VITE_API_URL || ''}/api/speak-word`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ word })
@@ -725,9 +829,18 @@ function App() {
       if (data.audioContent) {
         const audio = new Audio(`data:audio/mp3;base64,${data.audioContent}`)
         await audio.play()
+        return
       }
-    } catch (err) {
-      console.error('Word TTS error:', err)
+    } catch {
+      // Server unavailable
+    }
+
+    // Browser fallback
+    if ('speechSynthesis' in window) {
+      const utter = new SpeechSynthesisUtterance(word)
+      utter.lang = 'hi-IN'
+      utter.rate = 0.8
+      speechSynthesis.speak(utter)
     }
   }
 
@@ -778,17 +891,29 @@ function App() {
                   <span className="text-xl leading-tight">{sylText}</span>
                   {scansion && (
                     <span
-                      className={`text-center leading-none mt-0.5 ${
-                        scansion[si] === 'guru' ? 'text-purple-600 font-bold' : 'text-gray-400'
+                      className={`text-center leading-none mt-0.5 cursor-help ${
+                        scansion[si].weight === 'guru' ? 'text-purple-600 font-bold' : 'text-gray-400'
                       }`}
                       style={{ fontSize: '13px' }}
-                      title={scansion[si] === 'guru' ? 'Guru (long/heavy)' : 'Laghu (short/light)'}
+                      title={`${scansion[si].weight === 'guru' ? 'Guru (heavy)' : 'Laghu (light)'}: ${scansion[si].reason}`}
                     >
-                      {scansion[si] === 'guru' ? '—' : '◡'}
+                      {scansion[si].weight === 'guru' ? '—' : '◡'}
                     </span>
                   )}
                 </span>
               )
+
+              // Word click handler: play audio AND show tooltip
+              const handleWordClick = (e: React.MouseEvent) => {
+                speakWord(word)
+                const entry = lookupWord(word)
+                const rect = (e.currentTarget as HTMLElement).getBoundingClientRect()
+                if (entry) {
+                  setTooltipWord(prev => prev?.word === word ? null : { word, entry, rect })
+                } else {
+                  setTooltipWord(null)
+                }
+              }
 
               // If we have per-syllable data, render each syllable colored separately
               if (match?.syllables && match.status !== 'pending') {
@@ -799,8 +924,8 @@ function App() {
                       ${isCurrentlySpoken ? 'ring-2 ring-purple-500 scale-110' : ''}
                       hover:opacity-80
                     `}
-                    onClick={() => speakWord(word)}
-                    title={wordIsKnown ? 'Known word ✓ — Click to hear' : 'Click to hear correct pronunciation'}
+                    onClick={handleWordClick}
+                    title={wordIsKnown ? 'Known word ✓ — Tap for meaning' : 'Tap for meaning & pronunciation'}
                   >
                     {match.syllables.map((syl, si) =>
                       renderSylColumn(syl.text, si, match.syllables!.length, sylColorClass(syl.status))
@@ -840,8 +965,8 @@ function App() {
                     ${isCurrentlySpoken ? 'ring-2 ring-purple-500 scale-110' : ''}
                     hover:bg-gray-200
                   `}
-                  onClick={() => speakWord(word)}
-                  title="Click to hear"
+                  onClick={handleWordClick}
+                  title="Tap for meaning & pronunciation"
                 >
                   {wordSyls.map((syl, si) =>
                     renderSylColumn(syl, si, wordSyls.length, '')
@@ -877,288 +1002,327 @@ function App() {
     )
   }
 
-  return (
-    <div className="min-h-screen bg-gradient-to-br from-orange-50 via-amber-50 to-purple-50 p-4 md:p-8">
-      <div className="max-w-5xl mx-auto">
-        <header className="text-center mb-8">
-          <h1 className="text-4xl md:text-5xl font-bold text-purple-900 mb-1">
-            संस्कृत श्लोक अभ्यास
-          </h1>
-          <h2 className="text-lg md:text-xl text-gray-600">
-            Sanskrit Śloka Pronunciation Practice
-          </h2>
-          <p className="text-sm text-gray-400 mt-1">Speak and see real-time feedback • Click words to hear correct pronunciation in meter</p>
-          <button
-            onClick={() => setPage('sounds')}
-            className="mt-3 px-4 py-2 bg-amber-100 text-amber-800 rounded-lg hover:bg-amber-200 transition-colors border border-amber-300 font-medium text-sm"
-          >
-            🔤 Sound Practice & Scores
-          </button>
-        </header>
+  if (page === 'guide') {
+    return <PronunciationGuide onBack={() => setPage('practice')} />
+  }
 
-        {/* Śloka Library Browser */}
-        <section className="bg-white rounded-2xl shadow-lg p-6 mb-6 border border-gray-100">
-          <div className="flex flex-wrap justify-between items-center mb-4 gap-3">
-            <h3 className="text-lg font-semibold text-gray-700">
-              {showLibrary ? 'Śloka Library' : 'Select a Śloka'}
-            </h3>
-            <div className="flex gap-2">
-              <button
-                onClick={() => setShowLibrary(!showLibrary)}
-                className={`px-4 py-2 rounded-lg font-medium transition-colors ${
-                  showLibrary 
-                    ? 'bg-purple-600 text-white hover:bg-purple-700'
-                    : 'bg-purple-100 text-purple-700 hover:bg-purple-200 border border-purple-300'
-                }`}
-              >
-                {showLibrary ? '✕ Close Library' : '📚 Browse Library'}
-              </button>
+  if (page === 'settings') {
+    return <Settings onBack={() => setPage('practice')} />
+  }
+
+  // Count stats for header
+  const completedCount = Object.values(slokaProgress).filter(p => p.completed).length
+  const knownWordCount = knownWords.length
+
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-orange-50 via-amber-50 to-purple-50 safe-top">
+      {/* ── Compact sticky header ── */}
+      <header className="sticky top-0 z-30 glass-nav border-b border-gray-200/60 px-3 py-2 md:px-6 md:py-3 safe-top">
+        <div className="max-w-5xl mx-auto flex items-center justify-between gap-2">
+          <div className="flex items-center gap-2 min-w-0">
+            <h1 className="text-lg md:text-xl font-bold text-purple-900 truncate">Śloka Practice</h1>
+            <div className="hidden sm:flex items-center gap-1.5 text-xs text-gray-400">
+              {completedCount > 0 && <span className="px-1.5 py-0.5 bg-green-100 text-green-700 rounded-full font-medium">{completedCount} mastered</span>}
+              {knownWordCount > 0 && <span className="px-1.5 py-0.5 bg-purple-100 text-purple-700 rounded-full font-medium">{knownWordCount} words</span>}
             </div>
           </div>
+          <div className="flex items-center gap-1.5">
+            <button
+              onClick={() => { setShowLibrary(!showLibrary) }}
+              className={`chip ${showLibrary ? 'chip-active' : 'chip-inactive'}`}
+            >
+              📚 Library
+            </button>
+            <button
+              onClick={() => setPage('sounds')}
+              className="chip chip-inactive"
+            >
+              🔤 Sounds
+            </button>
+            <button
+              onClick={() => setPage('guide')}
+              className="chip chip-inactive"
+            >
+              📖 Rules
+            </button>
+            <button
+              onClick={() => setPage('settings')}
+              className="chip chip-inactive"
+            >
+              ⚙️ Settings
+            </button>
+          </div>
+        </div>
+      </header>
 
-          {/* Selected śloka info */}
-          {selectedEntry && !showLibrary && (
-            <div className="mb-4 p-3 bg-gradient-to-r from-purple-50 to-amber-50 rounded-xl">
-              <div className="flex flex-wrap items-center gap-2 mb-1">
-                <span className="px-2 py-0.5 bg-purple-100 text-purple-800 rounded font-bold text-sm">
-                  {meters[selectedEntry.meter].name}
-                </span>
-                {(() => {
-                  const ud = verseDifficulties.get(selectedEntry.id)!
-                  return (
-                    <span
-                      className={`px-2 py-0.5 rounded text-xs font-medium border ${difficultyColors[ud.difficulty]}`}
-                      title={`Score: ${ud.score}/100 • ${ud.knownWordCount}/${ud.totalWords} words known • ${ud.strongSoundCount} strong / ${ud.weakSoundCount} weak / ${ud.newSoundCount} new sounds`}
-                    >
-                      {difficultyLabels[ud.difficulty]} (for you)
-                    </span>
-                  )
-                })()}
-                <span className="text-sm text-gray-600 font-medium">{selectedEntry.reference}</span>
-                <span className="text-xs text-gray-400">({selectedEntry.source})</span>
-              </div>
-              {(() => {
-                const ud = verseDifficulties.get(selectedEntry.id)!
-                return (
-                  <div className="flex flex-wrap gap-3 text-xs text-gray-500 mb-1">
-                    <span>📊 {ud.knownWordCount}/{ud.totalWords} words known</span>
-                    {ud.strongSoundCount > 0 && <span>💪 {ud.strongSoundCount} strong sounds</span>}
-                    {ud.weakSoundCount > 0 && <span>⚠️ {ud.weakSoundCount} weak sounds</span>}
-                    {ud.newSoundCount > 0 && <span>🆕 {ud.newSoundCount} new sounds</span>}
-                  </div>
-                )
-              })()}
-              <p className="text-sm text-gray-500 italic">{selectedEntry.translation}</p>
+      <div className="max-w-5xl mx-auto px-3 md:px-6 py-4 pb-24">
+
+        {/* ═══════════════════ LIBRARY PANEL ═══════════════════ */}
+        {showLibrary && (
+          <section className="bg-white rounded-2xl shadow-lg mb-5 border border-gray-100 overflow-hidden">
+            {/* Search bar */}
+            <div className="p-3 md:p-4 border-b border-gray-100">
+              <input
+                type="text"
+                value={librarySearch}
+                onChange={e => setLibrarySearch(e.target.value)}
+                placeholder="Search verses, references, translations..."
+                className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-purple-400 focus:ring-1 focus:ring-purple-200"
+              />
             </div>
-          )}
 
-          {showLibrary && (
-            <div>
-              {/* Filters */}
-              <div className="flex flex-wrap gap-3 mb-4">
-                <div>
-                  <label className="text-xs text-gray-500 uppercase tracking-wide block mb-1">Meter</label>
-                  <div className="flex flex-wrap gap-1">
-                    <button
-                      onClick={() => setLibraryMeter('all')}
-                      className={`px-2.5 py-1 text-xs rounded-lg transition-colors ${
-                        libraryMeter === 'all' ? 'bg-purple-600 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                      }`}
-                    >All</button>
-                    {Object.entries(meters).map(([key, m]) => (
-                      <button
-                        key={key}
-                        onClick={() => setLibraryMeter(key as Meter)}
-                        className={`px-2.5 py-1 text-xs rounded-lg transition-colors ${
-                          libraryMeter === key ? 'bg-purple-600 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                        }`}
-                      >{m.name}</button>
-                    ))}
-                  </div>
-                </div>
-                <div>
-                  <label className="text-xs text-gray-500 uppercase tracking-wide block mb-1">Difficulty</label>
-                  <div className="flex flex-wrap gap-1">
-                    <button
-                      onClick={() => setLibraryDifficulty('all')}
-                      className={`px-2.5 py-1 text-xs rounded-lg transition-colors ${
-                        libraryDifficulty === 'all' ? 'bg-purple-600 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                      }`}
-                    >All</button>
-                    {(Object.keys(difficultyLabels) as Difficulty[]).map(d => (
-                      <button
-                        key={d}
-                        onClick={() => setLibraryDifficulty(d)}
-                        className={`px-2.5 py-1 text-xs rounded-lg transition-colors border ${
-                          libraryDifficulty === d ? difficultyColors[d] + ' font-bold' : 'bg-gray-100 text-gray-600 hover:bg-gray-200 border-transparent'
-                        }`}
-                      >{difficultyLabels[d]}</button>
-                    ))}
-                  </div>
+            {/* Filters */}
+            <div className="px-3 md:px-4 py-3 space-y-3 border-b border-gray-100 bg-gray-50/50">
+              {/* Source filter */}
+              <div>
+                <label className="text-[10px] text-gray-400 uppercase tracking-widest font-semibold block mb-1.5">Source</label>
+                <div className="flex flex-wrap gap-1">
+                  <button onClick={() => setLibrarySource('all')} className={`chip ${librarySource === 'all' ? 'chip-active' : 'chip-inactive'}`}>All</button>
+                  {Object.keys(sourceGroups).map(group => (
+                    <button key={group} onClick={() => setLibrarySource(group)} className={`chip ${librarySource === group ? 'chip-active' : 'chip-inactive'}`}>{group}</button>
+                  ))}
                 </div>
               </div>
 
-              {/* Results */}
-              <div className="space-y-2 max-h-96 overflow-y-auto pr-1">
-                {filteredSlokas.length === 0 && (
-                  <p className="text-sm text-gray-400 italic py-4 text-center">No ślokas found for this combination.</p>
-                )}
-                {[...filteredSlokas].sort((a, b) => {
-                  const da = verseDifficulties.get(a.id)?.score ?? 50
-                  const db = verseDifficulties.get(b.id)?.score ?? 50
-                  return da - db
-                }).map(entry => (
+              {/* Meter filter */}
+              <div>
+                <label className="text-[10px] text-gray-400 uppercase tracking-widest font-semibold block mb-1.5">Meter</label>
+                <div className="flex flex-wrap gap-1">
+                  <button onClick={() => setLibraryMeter('all')} className={`chip ${libraryMeter === 'all' ? 'chip-active' : 'chip-inactive'}`}>All</button>
+                  {Object.entries(meters).map(([key, m]) => (
+                    <button key={key} onClick={() => setLibraryMeter(key as Meter)} className={`chip ${libraryMeter === key ? 'chip-active' : 'chip-inactive'}`}>{m.name}</button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Difficulty filter + toggle */}
+              <div>
+                <div className="flex items-center justify-between mb-1.5">
+                  <label className="text-[10px] text-gray-400 uppercase tracking-widest font-semibold">Difficulty</label>
+                  <button
+                    onClick={() => setUseDynamicDifficulty(!useDynamicDifficulty)}
+                    className="text-[10px] flex items-center gap-1 text-purple-600 hover:text-purple-800 transition-colors"
+                    title={useDynamicDifficulty ? 'Showing personalized difficulty based on your progress' : 'Showing consensus difficulty rated by pronunciation complexity'}
+                  >
+                    <span className={`inline-block w-7 h-4 rounded-full relative transition-colors ${useDynamicDifficulty ? 'bg-purple-500' : 'bg-gray-300'}`}>
+                      <span className={`absolute top-0.5 w-3 h-3 bg-white rounded-full shadow transition-transform ${useDynamicDifficulty ? 'translate-x-3.5' : 'translate-x-0.5'}`} />
+                    </span>
+                    {useDynamicDifficulty ? 'For You' : 'Standard'}
+                  </button>
+                </div>
+                <div className="flex flex-wrap gap-1">
+                  <button onClick={() => setLibraryDifficulty('all')} className={`chip ${libraryDifficulty === 'all' ? 'chip-active' : 'chip-inactive'}`}>All</button>
+                  {(Object.keys(difficultyLabels) as Difficulty[]).map(d => (
+                    <button
+                      key={d}
+                      onClick={() => setLibraryDifficulty(d)}
+                      className={`chip ${libraryDifficulty === d ? 'chip-active' : 'chip-inactive'}`}
+                      style={libraryDifficulty === d ? {} : undefined}
+                    >{difficultyLabels[d]}</button>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            {/* Results count */}
+            <div className="px-3 md:px-4 py-2 text-xs text-gray-400 border-b border-gray-50">
+              {filteredSlokas.length} verse{filteredSlokas.length !== 1 ? 's' : ''} found
+              {librarySource !== 'all' || libraryMeter !== 'all' || libraryDifficulty !== 'all' || librarySearch.trim() ? (
+                <button onClick={() => { setLibrarySource('all'); setLibraryMeter('all'); setLibraryDifficulty('all'); setLibrarySearch('') }} className="ml-2 text-purple-500 hover:text-purple-700 underline">Clear filters</button>
+              ) : null}
+            </div>
+
+            {/* Results list */}
+            <div className="max-h-[60vh] overflow-y-auto scrollbar-thin">
+              {filteredSlokas.length === 0 && (
+                <p className="text-sm text-gray-400 italic py-8 text-center">No verses match your filters.</p>
+              )}
+              {[...filteredSlokas].sort((a, b) => {
+                if (useDynamicDifficulty) {
+                  return (verseDifficulties.get(a.id)?.score ?? 50) - (verseDifficulties.get(b.id)?.score ?? 50)
+                }
+                const order: Record<string, number> = { easy: 0, 'easy-medium': 1, medium: 2, 'medium-hard': 3, hard: 4 }
+                return (order[a.difficulty] ?? 2) - (order[b.difficulty] ?? 2)
+              }).map(entry => {
+                const sp = slokaProgress[entry.id]
+                const ud = verseDifficulties.get(entry.id)!
+                const diff = useDynamicDifficulty ? ud.difficulty : entry.difficulty
+
+                return (
                   <button
                     key={entry.id}
                     onClick={() => loadSloka(entry)}
-                    className={`w-full text-left p-3 rounded-xl border transition-all hover:shadow-md ${
-                      selectedEntry?.id === entry.id
-                        ? 'border-purple-400 bg-purple-50'
-                        : 'border-gray-200 bg-white hover:border-purple-200 hover:bg-purple-50/50'
+                    className={`w-full text-left px-3 md:px-4 py-3 border-b border-gray-50 transition-all hover:bg-purple-50/60 ${
+                      selectedEntry?.id === entry.id ? 'bg-purple-50 border-l-4 border-l-purple-500' : ''
                     }`}
                   >
-                    <div className="flex flex-wrap items-center gap-2 mb-1">
-                      {(() => {
-                        const sp = slokaProgress[entry.id]
-                        if (sp?.completed) return <span className="px-2 py-0.5 bg-green-500 text-white rounded text-xs font-bold" title={`Completed! ${sp.perfectCount} perfect recitations`}>✓ Complete</span>
-                        if (sp && sp.perfectCount > 0) return <span className="px-2 py-0.5 bg-amber-100 text-amber-700 border border-amber-300 rounded text-xs font-bold" title={`${sp.perfectCount}/3 perfect recitations`}>⭐ {sp.perfectCount}/3</span>
-                        return null
-                      })()}
-                      <span className="px-2 py-0.5 bg-purple-100 text-purple-800 rounded text-xs font-bold">
-                        {meters[entry.meter].name}
-                      </span>
-                      {(() => {
-                        const ud = verseDifficulties.get(entry.id)!
-                        return (
-                          <span
-                            className={`px-2 py-0.5 rounded text-xs font-medium border ${difficultyColors[ud.difficulty]}`}
-                            title={`Score: ${ud.score}/100 • ${ud.knownWordCount}/${ud.totalWords} words known`}
-                          >
-                            {difficultyLabels[ud.difficulty]}
+                    <div className="flex items-start gap-2">
+                      {/* Completion indicator */}
+                      <div className="mt-0.5 shrink-0 w-5">
+                        {sp?.completed ? (
+                          <span className="text-green-500 text-sm" title="Mastered">✓</span>
+                        ) : sp && sp.perfectCount > 0 ? (
+                          <span className="text-amber-500 text-xs font-bold">{sp.perfectCount}/3</span>
+                        ) : (
+                          <span className="text-gray-200 text-sm">○</span>
+                        )}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex flex-wrap items-center gap-1.5 mb-0.5">
+                          <span className="text-xs font-semibold text-gray-700">{entry.reference}</span>
+                          <span className={`px-1.5 py-0 rounded text-[10px] font-medium border ${difficultyColors[diff]}`}>
+                            {difficultyLabels[diff]}
                           </span>
-                        )
-                      })()}
-                      <span className="text-xs text-gray-600 font-medium">{entry.reference}</span>
-                      <span className="text-xs text-gray-400">({entry.source})</span>
+                          <span className="text-[10px] text-gray-400 hidden sm:inline">{meters[entry.meter].name}</span>
+                        </div>
+                        <p className="text-sm font-serif text-gray-600 line-clamp-1">{entry.text.split('\n')[0]}</p>
+                        <p className="text-[11px] text-gray-400 mt-0.5 italic line-clamp-1">{entry.translation}</p>
+                      </div>
+                      <span className="text-[10px] text-gray-300 shrink-0 hidden sm:block">{entry.source}</span>
                     </div>
-                    <p className="text-sm font-serif text-gray-700 line-clamp-2">{entry.text.split('\n')[0]}...</p>
-                    <p className="text-xs text-gray-400 mt-1 italic line-clamp-1">{entry.translation}</p>
                   </button>
-                ))}
+                )
+              })}
+            </div>
+
+            {/* Custom paste */}
+            <div className="p-3 md:p-4 border-t border-gray-100 bg-gray-50/30">
+              <details className="group">
+                <summary className="text-xs text-gray-500 cursor-pointer hover:text-purple-600 transition-colors select-none">
+                  Or paste your own śloka...
+                </summary>
+                <textarea
+                  value={selectedEntry ? '' : sloka}
+                  onChange={(e) => { setSloka(e.target.value); setSelectedEntry(null); setWordMatches([]); setTranscript('') }}
+                  className="mt-2 w-full h-24 p-3 border border-gray-200 rounded-xl focus:border-purple-500 focus:outline-none text-sm font-serif resize-y bg-white"
+                  placeholder="Paste Sanskrit śloka here (IAST romanization)..."
+                />
+              </details>
+            </div>
+          </section>
+        )}
+
+        {/* ═══════════════════ SELECTED VERSE INFO BAR ═══════════════════ */}
+        {selectedEntry && !showLibrary && (
+          <div className="bg-white rounded-2xl shadow-sm p-3 md:p-4 mb-4 border border-gray-100">
+            <div className="flex items-start justify-between gap-2">
+              <div className="min-w-0">
+                <div className="flex flex-wrap items-center gap-1.5 mb-1">
+                  <span className="font-semibold text-gray-800 text-sm">{selectedEntry.reference}</span>
+                  <span className="text-[10px] text-gray-400">({selectedEntry.source})</span>
+                  <span className={`px-1.5 py-0 rounded text-[10px] font-medium border ${difficultyColors[verseDifficulties.get(selectedEntry.id)!.difficulty]}`}>
+                    {difficultyLabels[verseDifficulties.get(selectedEntry.id)!.difficulty]}
+                  </span>
+                  <span className="px-1.5 py-0 bg-purple-50 text-purple-700 rounded text-[10px] font-medium">
+                    {meters[selectedEntry.meter].name}
+                  </span>
+                </div>
+                {(() => {
+                  const ud = verseDifficulties.get(selectedEntry.id)!
+                  return (
+                    <div className="flex flex-wrap gap-2 text-[11px] text-gray-400 mb-1">
+                      <span>{ud.knownWordCount}/{ud.totalWords} words known</span>
+                      {ud.weakSoundCount > 0 && <span className="text-amber-500">{ud.weakSoundCount} weak sounds</span>}
+                      {ud.newSoundCount > 0 && <span className="text-blue-400">{ud.newSoundCount} new</span>}
+                    </div>
+                  )
+                })()}
+                <p className="text-xs text-gray-500 italic line-clamp-2">{selectedEntry.translation}</p>
               </div>
+              <button onClick={() => setShowLibrary(true)} className="chip chip-inactive shrink-0">Change</button>
             </div>
-          )}
+          </div>
+        )}
 
-          {/* Custom paste fallback */}
-          {!showLibrary && (
-            <div>
-              <label className="block text-sm font-medium mb-1 text-gray-500">
-                Or paste your own:
-              </label>
-              <textarea
-                value={sloka}
-                onChange={(e) => {
-                  setSloka(e.target.value)
-                  setSelectedEntry(null)
-                  setWordMatches([])
-                  setTranscript('')
-                }}
-                className="w-full h-28 p-3 border-2 border-purple-200 rounded-xl focus:border-purple-500 focus:outline-none text-lg font-serif resize-y"
-                placeholder="Paste Sanskrit śloka here (IAST romanization)..."
-              />
-            </div>
-          )}
-
-          {sloka && !showLibrary && !selectedEntry && (
-            <div className="mt-3 p-3 bg-gradient-to-r from-purple-50 to-amber-50 rounded-xl flex flex-wrap items-center gap-3">
-              <span className="text-purple-700 font-semibold text-sm">Detected Chandas:</span>
-              <span className="px-3 py-1 bg-purple-100 text-purple-800 rounded-lg font-bold">
-                {meters[selectedMeter].name}
-              </span>
-              <span className="text-xs text-gray-500">
-                ({meters[selectedMeter].syllablesPerLine} syllables/pāda — {meters[selectedMeter].description})
-              </span>
-            </div>
-          )}
-        </section>
-
-        {/* Sloka Display with Highlights */}
-        {sloka && (
-          <section className="bg-white rounded-2xl shadow-lg p-6 mb-6 border border-gray-100">
-            <div className="flex flex-wrap justify-between items-center mb-4 gap-3">
-              <h3 className="text-lg font-semibold text-gray-700">
-                Śloka — {meters[selectedMeter].name} Meter
-              </h3>
-              <div className="flex items-center gap-2">
+        {/* ═══════════════════ ŚLOKA DISPLAY ═══════════════════ */}
+        {sloka && !showLibrary && (
+          <section className="bg-white rounded-2xl shadow-lg mb-4 border border-gray-100 overflow-hidden relative">
+            {/* Toolbar */}
+            <div className="flex items-center justify-between gap-2 px-3 md:px-5 py-2 border-b border-gray-100 bg-gray-50/50">
+              <span className="text-xs text-gray-500 font-medium">{meters[selectedMeter].name} Meter</span>
+              <div className="flex items-center gap-1.5">
                 <button
                   onClick={() => setShowMeterMarks(!showMeterMarks)}
-                  className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors flex items-center gap-1.5 ${
-                    showMeterMarks
-                      ? 'bg-purple-100 text-purple-700 ring-2 ring-purple-300'
-                      : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                  }`}
-                  title={showMeterMarks ? 'Hide meter scansion marks' : 'Show guru (—) / laghu (◡) under each syllable'}
+                  className={`chip ${showMeterMarks ? 'chip-active' : 'chip-inactive'}`}
+                  title={showMeterMarks ? 'Hide scansion' : 'Show guru/laghu marks'}
                 >
-                  <span style={{ fontFamily: 'serif' }}>◡—</span>
-                  {showMeterMarks ? 'Meter On' : 'Meter'}
+                  <span style={{ fontFamily: 'serif', fontSize: '11px' }}>◡—</span>
                 </button>
-              <button
-                onClick={() => isSpeaking ? stopPlayback() : speakWithMeter(sloka, selectedMeter)}
-                disabled={isGenerating}
-                className={`px-4 py-2 rounded-lg transition-colors flex items-center gap-2 font-medium ${
-                  isGenerating
-                    ? 'bg-amber-500 text-white animate-pulse cursor-wait'
-                    : isSpeaking 
-                      ? 'bg-red-500 text-white hover:bg-red-600'
-                      : 'bg-purple-600 text-white hover:bg-purple-700'
-                }`}
-              >
-                <span>{isGenerating ? '⏳' : isSpeaking ? '⏹' : '🔊'}</span>
-                {isGenerating 
-                  ? 'Generating chant...' 
-                  : isSpeaking 
-                    ? 'Stop' 
-                    : `Hear ${meters[selectedMeter].name} Chanting`}
-              </button>
+                <button
+                  onClick={() => isSpeaking ? stopPlayback() : speakWithMeter(sloka, selectedMeter)}
+                  disabled={isGenerating}
+                  className={`chip ${isGenerating ? 'bg-amber-500 text-white animate-pulse border-amber-500' : isSpeaking ? 'bg-red-500 text-white border-red-500' : 'chip-inactive'}`}
+                >
+                  {isGenerating ? '⏳' : isSpeaking ? '⏹ Stop' : '🔊 Listen'}
+                </button>
               </div>
             </div>
-            
-            <div className="p-4 bg-gray-50 rounded-xl">
+
+            {/* Verse text */}
+            <div className="p-3 md:p-5" onClick={(e) => { if (e.target === e.currentTarget) setTooltipWord(null) }}>
               {renderSlokaWithHighlights()}
             </div>
-            
-            <div className="mt-4 text-sm border-t pt-3 space-y-2">
-              <p className="text-gray-500 italic">Your speech is compared against the <strong>text above</strong>. Click any word to hear how it should sound.</p>
-              <div className="flex flex-wrap gap-4">
+
+            {/* Word meaning tooltip */}
+            {tooltipWord && (
+              <div
+                className="fixed z-50 animate-in fade-in"
+                style={{
+                  top: Math.min(tooltipWord.rect.bottom + 8, window.innerHeight - 160),
+                  left: Math.max(8, Math.min(tooltipWord.rect.left, window.innerWidth - 260)),
+                }}
+              >
+                <div className="bg-gray-900 text-white rounded-xl shadow-2xl px-4 py-3 max-w-[250px] relative">
+                  <button
+                    onClick={() => setTooltipWord(null)}
+                    className="absolute top-1.5 right-2 text-gray-400 hover:text-white text-xs"
+                  >✕</button>
+                  <div className="font-serif text-base font-semibold text-amber-300 mb-1">{tooltipWord.word}</div>
+                  <div className="text-sm leading-snug mb-1.5">{tooltipWord.entry.meaning}</div>
+                  {tooltipWord.entry.grammar && (
+                    <div className="text-[11px] text-gray-400 mb-0.5">{tooltipWord.entry.grammar}</div>
+                  )}
+                  {tooltipWord.entry.root && (
+                    <div className="text-[11px] text-purple-300 mb-0.5">Root: {tooltipWord.entry.root}</div>
+                  )}
+                  {tooltipWord.entry.related && (
+                    <div className="text-[11px] text-blue-300 italic mt-1">{tooltipWord.entry.related}</div>
+                  )}
+                  <button
+                    onClick={(e) => { e.stopPropagation(); speakWord(tooltipWord.word) }}
+                    className="mt-2 w-full text-center px-3 py-1.5 bg-purple-600 hover:bg-purple-500 text-white text-xs rounded-lg font-medium transition-colors"
+                  >
+                    🔊 Hear again
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* Legend */}
+            <div className="px-3 md:px-5 py-2 border-t border-gray-50 bg-gray-50/30">
+              <div className="flex flex-wrap gap-3 text-[11px] text-gray-400">
                 {showMeterMarks && (
                   <>
-                    <span className="flex items-center gap-1.5">
-                      <span className="text-purple-600 font-bold" style={{ fontFamily: 'serif' }}>—</span>
-                      <span className="text-gray-500">Guru (long/heavy)</span>
+                    <span className="flex items-center gap-1">
+                      <span className="text-purple-600 font-bold" style={{ fontFamily: 'serif' }}>—</span> Guru
                     </span>
-                    <span className="flex items-center gap-1.5">
-                      <span className="text-gray-400" style={{ fontFamily: 'serif' }}>◡</span>
-                      <span className="text-gray-500">Laghu (short/light)</span>
+                    <span className="flex items-center gap-1">
+                      <span className="text-gray-400" style={{ fontFamily: 'serif' }}>◡</span> Laghu
                     </span>
-                    <span className="text-gray-300">|</span>
+                    <span className="text-gray-200">|</span>
                   </>
                 )}
-                <span className="flex items-center gap-2">
-                  <span className="w-4 h-4 bg-green-100 border-b-4 border-green-500 rounded"></span> Correct
-                </span>
-                <span className="flex items-center gap-2">
-                  <span className="w-4 h-4 bg-yellow-100 border-b-4 border-yellow-500 rounded"></span> Close
-                </span>
-                <span className="flex items-center gap-2">
-                  <span className="w-4 h-4 bg-red-100 border-b-4 border-red-500 rounded"></span> Incorrect
-                </span>
+                <span className="flex items-center gap-1"><span className="w-2.5 h-2.5 bg-green-400 rounded-sm"></span> Correct</span>
+                <span className="flex items-center gap-1"><span className="w-2.5 h-2.5 bg-yellow-400 rounded-sm"></span> Close</span>
+                <span className="flex items-center gap-1"><span className="w-2.5 h-2.5 bg-red-400 rounded-sm"></span> Incorrect</span>
+                <span className="text-gray-300 ml-auto hidden sm:block">Tap any word for meaning & pronunciation</span>
               </div>
             </div>
           </section>
         )}
 
-        {/* Śloka Completion Progress */}
-        {selectedEntry && wordMatches.length > 0 && (() => {
+        {/* ═══════════════════ COMPLETION PROGRESS ═══════════════════ */}
+        {selectedEntry && !showLibrary && wordMatches.length > 0 && (() => {
           const sp = slokaProgress[selectedEntry.id]
           const nonPending = wordMatches.filter(m => m.status !== 'pending')
           const allGreen = nonPending.length > 0 && nonPending.length === wordMatches.length && nonPending.every(m => m.status === 'green')
@@ -1168,105 +1332,153 @@ function App() {
           if (!sp && !allGreen) return null
 
           return (
-            <section className={`rounded-2xl shadow-lg p-4 mb-6 border ${
-              completed ? 'bg-gradient-to-r from-green-50 to-emerald-50 border-green-300' :
-              allGreen ? 'bg-gradient-to-r from-amber-50 to-yellow-50 border-amber-300' :
-              'bg-white border-gray-100'
+            <div className={`rounded-xl p-3 mb-4 flex items-center justify-between gap-3 ${
+              completed ? 'bg-green-50 border border-green-200' :
+              allGreen ? 'bg-amber-50 border border-amber-200' :
+              'bg-gray-50 border border-gray-100'
             }`}>
-              <div className="flex items-center justify-between gap-3">
-                <div className="flex items-center gap-3">
-                  {completed ? (
-                    <span className="text-3xl">🏆</span>
-                  ) : allGreen ? (
-                    <span className="text-3xl">🎉</span>
-                  ) : (
-                    <span className="text-2xl">📖</span>
-                  )}
-                  <div>
-                    {completed ? (
-                      <p className="font-bold text-green-700">Mastered! You've recited this perfectly {perfectCount} times.</p>
-                    ) : allGreen ? (
-                      <p className="font-bold text-amber-700">
-                        Perfect recitation! {perfectCount}/3 toward mastery.
-                      </p>
-                    ) : sp ? (
-                      <p className="text-sm text-gray-600">
-                        {perfectCount}/3 perfect recitations{sp.attempts > 0 ? ` (${sp.attempts} total attempts)` : ''}
-                      </p>
-                    ) : null}
+              <div className="flex items-center gap-2 min-w-0">
+                <span className="text-xl shrink-0">{completed ? '🏆' : allGreen ? '🎉' : '📖'}</span>
+                <span className={`text-sm font-medium ${completed ? 'text-green-700' : allGreen ? 'text-amber-700' : 'text-gray-600'}`}>
+                  {completed ? 'Mastered!' : allGreen ? `Perfect! ${perfectCount}/3` : `${perfectCount}/3 perfect`}
+                </span>
+              </div>
+              <div className="flex items-center gap-1 shrink-0">
+                {[0, 1, 2].map(i => (
+                  <div key={i} className={`w-4 h-4 rounded-full text-[9px] flex items-center justify-center font-bold ${
+                    i < perfectCount ? 'bg-green-500 text-white' : 'bg-gray-200 text-gray-400'
+                  }`}>
+                    {i < perfectCount ? '✓' : ''}
                   </div>
-                </div>
-                {/* Progress dots */}
-                <div className="flex items-center gap-2 shrink-0">
-                  {[0, 1, 2].map(i => (
-                    <div
-                      key={i}
-                      className={`w-5 h-5 rounded-full border-2 flex items-center justify-center text-xs font-bold ${
-                        i < perfectCount
-                          ? 'bg-green-500 border-green-600 text-white'
-                          : 'bg-gray-100 border-gray-300 text-gray-400'
-                      }`}
-                    >
-                      {i < perfectCount ? '✓' : i + 1}
+                ))}
+              </div>
+            </div>
+          )
+        })()}
+
+        {/* ═══════════════════ YOUR RECORDINGS ═══════════════════ */}
+        {sloka && !showLibrary && wordMatches.length > 0 && (() => {
+          const slokaWords = sloka.replace(/[।॥]/g, '').split(/\s+/).filter(w => w.length > 0)
+          const wordsWithRecordings = slokaWords
+            .map(w => {
+              const key = w.toLowerCase().trim()
+              const stats = wordStats[key]
+              if (!stats || stats.history.length === 0) return null
+              const recsWithAudio = stats.history.filter(h => h.recordingUrl)
+              if (recsWithAudio.length === 0) return null
+              return { word: w, stats, recordings: recsWithAudio }
+            })
+            .filter(Boolean) as { word: string; stats: WordStats; recordings: typeof wordStats[string]['history'] }[]
+
+          if (wordsWithRecordings.length === 0) return null
+
+          return (
+            <section className="bg-white rounded-2xl shadow-sm mb-4 border border-gray-100 overflow-hidden">
+              <details className="group">
+                <summary className="px-3 md:px-5 py-2.5 cursor-pointer select-none flex items-center justify-between hover:bg-gray-50 transition-colors">
+                  <span className="text-xs font-semibold text-gray-600 flex items-center gap-1.5">
+                    🎧 Your Recordings
+                    <span className="text-[10px] text-gray-400 font-normal">({wordsWithRecordings.length} word{wordsWithRecordings.length !== 1 ? 's' : ''})</span>
+                  </span>
+                  <span className="text-gray-400 text-xs group-open:rotate-180 transition-transform">▾</span>
+                </summary>
+                <div className="px-3 md:px-5 pb-3 space-y-2 max-h-64 overflow-y-auto scrollbar-thin">
+                  {wordsWithRecordings.map(({ word, recordings }) => (
+                    <div key={word} className="flex items-start gap-2 py-1.5 border-b border-gray-50 last:border-0">
+                      <span className="text-sm font-serif text-gray-700 min-w-[80px] shrink-0 pt-0.5">{word}</span>
+                      <div className="flex flex-wrap gap-1">
+                        {recordings.slice(0, 5).map((rec, ri) => (
+                          <button
+                            key={ri}
+                            onClick={() => {
+                              if (rec.recordingUrl) {
+                                const audio = new Audio(rec.recordingUrl)
+                                audio.play()
+                              }
+                            }}
+                            className={`inline-flex items-center gap-1 px-2 py-1 rounded-lg text-[11px] font-medium transition-colors ${
+                              rec.status === 'green' ? 'bg-green-50 text-green-700 hover:bg-green-100 border border-green-200' :
+                              rec.status === 'yellow' ? 'bg-yellow-50 text-yellow-700 hover:bg-yellow-100 border border-yellow-200' :
+                              'bg-red-50 text-red-700 hover:bg-red-100 border border-red-200'
+                            }`}
+                            title={`${rec.status === 'green' ? 'Correct' : rec.status === 'yellow' ? 'Close' : 'Incorrect'} attempt — heard: "${rec.transcript}"`}
+                          >
+                            ▶ {rec.status === 'green' ? '✓' : rec.status === 'yellow' ? '~' : '✗'}
+                          </button>
+                        ))}
+                        <button
+                          onClick={() => speakWord(word)}
+                          className="inline-flex items-center gap-1 px-2 py-1 rounded-lg text-[11px] font-medium bg-purple-50 text-purple-600 hover:bg-purple-100 border border-purple-200 transition-colors"
+                          title="Hear correct pronunciation"
+                        >
+                          🔊 Correct
+                        </button>
+                      </div>
                     </div>
                   ))}
                 </div>
-              </div>
+              </details>
             </section>
           )
         })()}
 
-        {/* Speech Practice */}
-        <section className="bg-white rounded-2xl shadow-lg p-6 mb-6 border border-gray-100">
-          <div className="flex flex-wrap justify-between items-center mb-4 gap-3">
-            <h3 className="text-lg font-semibold text-gray-700">Practice Speaking</h3>
-            <div className="flex gap-2">
+        {/* ═══════════════════ SPEECH CONTROLS ═══════════════════ */}
+        {!showLibrary && (
+          <section className="mb-6">
+            {/* Microphone FAB on mobile, inline on desktop */}
+            <div className="flex items-center justify-center gap-3">
               {isListening && (
-                <div className="flex items-center gap-2 px-3 py-2 bg-red-50 rounded-lg">
-                  <span className="w-3 h-3 bg-red-500 rounded-full animate-pulse"></span>
-                  <span className="text-sm text-red-600">Listening...</span>
+                <div className="flex items-center gap-1.5 px-3 py-1.5 bg-red-50 rounded-full">
+                  <span className="w-2 h-2 bg-red-500 rounded-full animate-pulse"></span>
+                  <span className="text-xs text-red-600 font-medium">Listening...</span>
                 </div>
               )}
               <button
                 onClick={isListening ? stopListening : startListening}
                 disabled={!sloka}
-                className={`px-5 py-2.5 rounded-lg font-semibold transition-colors ${
+                className={`px-6 py-3 rounded-full font-semibold text-sm transition-all shadow-md active:scale-95 ${
                   !sloka 
-                    ? 'bg-gray-200 text-gray-400 cursor-not-allowed'
+                    ? 'bg-gray-200 text-gray-400 cursor-not-allowed shadow-none'
                     : isListening
-                      ? 'bg-red-500 text-white hover:bg-red-600'
-                      : 'bg-green-500 text-white hover:bg-green-600'
+                      ? 'bg-red-500 text-white hover:bg-red-600 shadow-red-200'
+                      : 'bg-green-500 text-white hover:bg-green-600 shadow-green-200'
                 }`}
               >
-                {isListening ? '⏹ Stop' : '🎤 Start Speaking'}
+                {isListening ? '⏹ Stop Listening' : '🎤 Start Speaking'}
               </button>
             </div>
-          </div>
-          
-          {false && transcript && (
-            <div className="p-4 bg-gray-50 rounded-xl">
-              <p className="text-xs text-gray-500 mb-1 uppercase tracking-wide">What you said:</p>
-              <p className="text-lg font-serif">{transcript}</p>
-            </div>
-          )}
 
-          {!sloka && (
-            <p className="text-sm text-gray-400 italic">Paste a śloka above to begin practicing.</p>
-          )}
-          
-          {typeof window !== 'undefined' && !('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window) && (
-            <div className="p-4 bg-yellow-50 border border-yellow-200 rounded-xl text-yellow-800 text-sm">
-              ⚠️ Speech recognition is not supported in your browser. Please use Chrome or Edge.
-            </div>
-          )}
-        </section>
+            {!sloka && !selectedEntry && (
+              <p className="text-xs text-gray-400 text-center mt-3">Select a verse from the library to begin</p>
+            )}
 
-        {/* Instructions */}
-        <section className="text-center text-sm text-gray-500 space-y-1 pb-8">
-          <p><strong>How to use:</strong> Paste a śloka (meter auto-detects) → Click "Start Speaking" → Read the śloka aloud</p>
-          <p>Words turn <span className="text-green-600 font-medium">green</span> (correct), <span className="text-yellow-600 font-medium">yellow</span> (close), or <span className="text-red-600 font-medium">red</span> (incorrect)</p>
-          <p>Click any red/yellow word to hear the correct pronunciation • Click 🔊 to hear a full line in the selected meter</p>
-        </section>
+            {typeof window !== 'undefined' && !('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window) && (
+              <div className="mt-3 p-3 bg-yellow-50 border border-yellow-200 rounded-xl text-yellow-800 text-xs text-center">
+                Speech recognition requires Chrome or Edge.
+              </div>
+            )}
+          </section>
+        )}
+
+        {/* Custom paste (when no library) */}
+        {!showLibrary && !selectedEntry && (
+          <section className="bg-white rounded-2xl shadow-sm p-4 mb-6 border border-gray-100">
+            <label className="block text-xs text-gray-500 font-medium mb-1.5">Paste your own śloka</label>
+            <textarea
+              value={sloka}
+              onChange={(e) => { setSloka(e.target.value); setSelectedEntry(null); setWordMatches([]); setTranscript('') }}
+              className="w-full h-24 p-3 border border-gray-200 rounded-xl focus:border-purple-500 focus:outline-none text-sm font-serif resize-y"
+              placeholder="Paste Sanskrit śloka here (IAST romanization)..."
+            />
+            {sloka && (
+              <div className="mt-2 flex items-center gap-2 text-xs text-gray-500">
+                <span className="font-medium text-purple-700">Detected:</span>
+                <span className="px-2 py-0.5 bg-purple-50 text-purple-800 rounded font-medium">{meters[selectedMeter].name}</span>
+              </div>
+            )}
+          </section>
+        )}
+
       </div>
     </div>
   )

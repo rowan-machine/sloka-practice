@@ -1,18 +1,25 @@
 {
   "name": "Śloka Practice",
-  "short_name": "ŚlokaPractice",
-  "description": "Sanskrit Śloka Pronunciation Practice — speak and get real-time feedback",
+  "short_name": "Śloka",
+  "description": "Sanskrit Śloka Pronunciation Practice — speak and get real-time feedback with meter analysis, word glossary, and pronunciation rules",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#fdf8f0",
   "theme_color": "#7c3aed",
   "orientation": "portrait-primary",
+  "categories": ["education", "lifestyle"],
   "icons": [
     {
-      "src": "/favicon.svg",
-      "sizes": "any",
+      "src": "/icon-192.svg",
+      "sizes": "192x192",
       "type": "image/svg+xml",
-      "purpose": "any maskable"
+      "purpose": "any"
+    },
+    {
+      "src": "/icon-192.svg",
+      "sizes": "512x512",
+      "type": "image/svg+xml",
+      "purpose": "maskable"
     }
   ]
 }
