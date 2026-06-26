@@ -379,12 +379,14 @@ function App() {
 
     const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition
     const recognition = new SpeechRecognition()
-    recognition.continuous = false
+    const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent)
+    recognition.continuous = !isMobile
     recognition.interimResults = true
-    // hi-IN (Hindi) works on both desktop and mobile for Sanskrit words
-    // Returns Devanagari text which we transliterate before comparison
-    recognition.lang = 'hi-IN'
+    // Desktop: hi-IN works great for Sanskrit (returns Devanagari, we transliterate)
+    // Mobile: en-US is the most reliable — at least captures phonemes
+    recognition.lang = isMobile ? 'en-US' : 'hi-IN'
     recognition.maxAlternatives = 3
+    console.log('[SR] setup:', { isMobile, lang: recognition.lang, continuous: recognition.continuous })
 
     recognition.onstart = () => {
       console.log('[SR] onstart fired')
