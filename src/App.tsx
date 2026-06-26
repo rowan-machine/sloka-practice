@@ -319,7 +319,7 @@ function App() {
     'Śrīmad-Bhāgavatam': allSources.filter((s: string) => s === 'Śrīmad-Bhāgavatam'),
     'Brahma-saṁhitā': allSources.filter((s: string) => s === 'Brahma-saṁhitā'),
     'Other Śāstra': allSources.filter((s: string) => ['Caitanya-caritāmṛta', 'Śikṣāṣṭaka', 'Īśopaniṣad'].includes(s)),
-    'Mantras & Prayers': allSources.filter((s: string) => s.includes('Mantra') || s.includes('Praṇāma') || s.includes('Āratī') || s.includes('Gāyatrī') || s.includes('Prayer') || s.includes('Nṛsiṁha')),
+    'Mantras & Prayers': allSources.filter((s: string) => s.toLowerCase().includes('mantra') || s.includes('Praṇāma') || s.includes('Āratī') || s.includes('Gāyatrī') || s.includes('Prayer') || s.includes('Nṛsiṁha')),
     'Bhajans & Kīrtana': allSources.filter((s: string) => ['Bhaktivinoda Ṭhākura', 'Narottama dāsa Ṭhākura', 'Viśvanātha Cakravartī Ṭhākura', 'Kīrtana', 'Rūpa Gosvāmī', 'Śrīla Prabhupāda', 'Dāmodarāṣṭaka', 'Gurv-aṣṭaka'].includes(s)),
   }
 
@@ -347,7 +347,8 @@ function App() {
     }
     if (librarySearch.trim()) {
       const q = librarySearch.toLowerCase()
-      if (!s.text.toLowerCase().includes(q) && !s.reference.toLowerCase().includes(q) && !s.translation.toLowerCase().includes(q) && !s.source.toLowerCase().includes(q)) return false
+      const strip = (t: string) => t.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+      if (!strip(s.text).includes(q) && !strip(s.reference).includes(q) && !strip(s.translation).includes(q) && !strip(s.source).includes(q) && !s.text.toLowerCase().includes(q) && !s.reference.toLowerCase().includes(q)) return false
     }
     return true
   })
