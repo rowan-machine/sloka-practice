@@ -5,17 +5,10 @@ import dotenv from 'dotenv'
 dotenv.config()
 
 const app = express()
-app.use(cors({
-  origin: process.env.ALLOWED_ORIGINS
-    ? process.env.ALLOWED_ORIGINS.split(',')
-    : true  // allow all origins in development
-}))
+app.use(cors())
 app.use(express.json())
 
-const API_KEY = process.env.ELEVENLABS_API_KEY
-// Charlotte — clear, expressive female voice (better for melodic chanting)
-// Alternatives: 'pNInz6obpgDQGcFmaJgB' (Adam), 'ThT5KcBeYPX3keUQqHPh' (Dorothy)
-const VOICE_ID = process.env.ELEVENLABS_VOICE_ID || 'XB0fDUnXU5powFXDhCwa'
+const DEFAULT_VOICE_ID = 'XB0fDUnXU5powFXDhCwa'
 
 // Per-pāda pitch/rate settings for each meter
 // Each meter defines 4 pādas with unique pitch (semitones shift) and rate
@@ -115,14 +108,14 @@ function splitIntoPadas(text: string, syllablesPerLine: number): string[] {
 }
 
 // Synthesize one pāda with ElevenLabs
-async function synthesizePada(text: string, settings: PadaSettings): Promise<Buffer> {
+async function synthesizePada(text: string, settings: PadaSettings, apiKey: string, voiceId: string): Promise<Buffer> {
   const response = await fetch(
-    `https://api.elevenlabs.io/v1/text-to-speech/${VOICE_ID}`,
+    `https://api.elevenlabs.io/v1/text-to-speech/${voiceId}`,
     {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'xi-api-key': API_KEY!
+        'xi-api-key': apiKey
       },
       body: JSON.stringify({
         text: text,
@@ -148,9 +141,11 @@ async function synthesizePada(text: string, settings: PadaSettings): Promise<Buf
 // Returns per-pāda audio buffers + pitch/rate info for frontend processing
 app.post('/api/speak', async (req, res) => {
   const { text, meter } = req.body
+  const apiKey = req.headers['x-api-key'] as string
+  const voiceId = (req.headers['x-voice-id'] as string) || DEFAULT_VOICE_ID
 
-  if (!API_KEY) {
-    return res.status(500).json({ error: 'ELEVENLABS_API_KEY not set in .env' })
+  if (!apiKey) {
+    return res.status(400).json({ error: 'API key required — add your ElevenLabs key in Settings' })
   }
 
   if (!text) {
@@ -169,7 +164,7 @@ app.post('/api/speak', async (req, res) => {
     for (let i = 0; i < padas.length; i++) {
       const padaSettings = config.padas[i % config.padas.length]
       console.log(`  Pāda ${i + 1}: "${padas[i]}" rate=${padaSettings.rate} stability=${padaSettings.stability} style=${padaSettings.style}`)
-      const audioBuffer = await synthesizePada(padas[i], padaSettings)
+      const audioBuffer = await synthesizePada(padas[i], padaSettings, apiKey, voiceId)
       results.push({
         audio: audioBuffer.toString('base64'),
         rate: padaSettings.rate
@@ -187,13 +182,15 @@ app.post('/api/speak', async (req, res) => {
 // Single word pronunciation
 app.post('/api/speak-word', async (req, res) => {
   const { word } = req.body
+  const apiKey = req.headers['x-api-key'] as string
+  const voiceId = (req.headers['x-voice-id'] as string) || DEFAULT_VOICE_ID
 
-  if (!API_KEY) {
-    return res.status(500).json({ error: 'ELEVENLABS_API_KEY not set in .env' })
+  if (!apiKey) {
+    return res.status(400).json({ error: 'API key required — add your ElevenLabs key in Settings' })
   }
 
   try {
-    const audioBuffer = await synthesizePada(word, { rate: 0.75, stability: 0.45, style: 0.75 })
+    const audioBuffer = await synthesizePada(word, { rate: 0.75, stability: 0.45, style: 0.75 }, apiKey, voiceId)
     res.json({ audioContent: audioBuffer.toString('base64') })
   } catch (err: any) {
     res.status(500).json({ error: err.message })
@@ -203,5 +200,5 @@ app.post('/api/speak-word', async (req, res) => {
 const PORT = process.env.PORT || 3001
 app.listen(PORT, () => {
   console.log(`TTS server running on http://localhost:${PORT}`)
-  console.log(`Using ElevenLabs voice: ${VOICE_ID}`)
+  console.log('BYOK mode — users provide their own ElevenLabs API key via Settings')
 })
