@@ -3,7 +3,7 @@ import './App.css'
 import { slokaLibrary, difficultyLabels, difficultyColors, type Difficulty, type SlokaEntry } from './slokaLibrary'
 import { loadScores, saveScores, recordResult, loadKnownWords, addKnownWord, removeKnownWord, isWordKnown, loadWordStats, recordWordAttempt, loadSlokaProgress, saveSlokaProgress, recordSlokaAttempt, devanagariToRoman, getWordAccuracy, getWordsNeedingWork, type SoundScore, type KnownWord, type WordStats, type SlokaProgress } from './sanskritSounds'
 import { getUserDifficulty } from './difficultyScorer'
-import { lookupWord, type GlossaryEntry } from './sanskritGlossary'
+import { lookupWord, DHATU_ROOTS, type GlossaryEntry } from './sanskritGlossary'
 import SoundPractice from './SoundPractice'
 import PronunciationGuide from './PronunciationGuide'
 import TempleProgram from './TempleProgram'
@@ -2192,6 +2192,40 @@ function App() {
                   <p className="text-sm text-gray-400 mt-1">Practice verses to build your word list.</p>
                 </section>
               )}
+
+              {/* ── Root Words (Dhātu) ── */}
+              <section className="bg-white rounded-2xl shadow-lg border border-gray-100 overflow-hidden">
+                <details className="group">
+                  <summary className="flex items-center justify-between p-4 cursor-pointer select-none hover:bg-gray-50 transition-colors">
+                    <div className="flex items-center gap-2">
+                      <span className="text-lg">🌱</span>
+                      <h3 className="text-base font-semibold text-gray-700">Root Words <span className="text-sm font-normal text-gray-400">(Dhātu)</span></h3>
+                    </div>
+                    <span className="text-gray-400 text-xs group-open:rotate-180 transition-transform">▼</span>
+                  </summary>
+                  <div className="px-4 pb-4 border-t border-gray-100">
+                    <p className="text-xs text-gray-400 mt-3 mb-3">Sanskrit verbal roots — the building blocks of every word you encounter in verses.</p>
+                    <div className="grid gap-2">
+                      {DHATU_ROOTS.map((d, i) => (
+                        <div key={i} className="flex items-start gap-3 p-2.5 rounded-xl bg-purple-50/50 border border-purple-100/50">
+                          <span className="font-mono text-sm font-bold text-purple-700 shrink-0 w-14 pt-0.5">{d.root}</span>
+                          <div className="flex-1 min-w-0">
+                            <span className="text-sm text-gray-700">{d.meaning}</span>
+                            <div className="flex flex-wrap gap-1 mt-1">
+                              {d.examples.map((ex, j) => (
+                                <button key={j} onClick={() => speakWord(ex)}
+                                  className="text-[11px] px-1.5 py-0.5 bg-white border border-purple-200 rounded-md font-serif text-purple-800 hover:bg-purple-100 transition-colors cursor-pointer"
+                                  title={`Hear "${ex}"`}
+                                >{ex}</button>
+                              ))}
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </details>
+              </section>
             </div>
           )
         })()}
@@ -3016,8 +3050,8 @@ function App() {
           </section>
         )}
 
-        {/* Custom paste (when no library) */}
-        {!showLibrary && !selectedEntry && (
+        {/* Custom paste (when no library/practice/vocab) */}
+        {!showLibrary && !showWordPractice && !showWordBank && !selectedEntry && (
           <section className="bg-white rounded-2xl shadow-sm p-4 mb-6 border border-gray-100">
             <label className="block text-xs text-gray-500 font-medium mb-1.5">Paste your own śloka</label>
             <textarea

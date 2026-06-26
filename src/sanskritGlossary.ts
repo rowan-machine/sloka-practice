@@ -333,6 +333,34 @@ export const glossary: Record<string, GlossaryEntry> = {
   'catur': { meaning: 'four', grammar: 'num.' },
 }
 
+// Common Sanskrit dhātus (verbal roots) for reference
+export const DHATU_ROOTS: { root: string; meaning: string; examples: string[] }[] = [
+  { root: '√bhaj', meaning: 'to serve / worship', examples: ['bhakti', 'bhakta', 'bhajāmi'] },
+  { root: '√kṛ', meaning: 'to do / make', examples: ['karma', 'kṛṣṇa', 'namaskuru'] },
+  { root: '√jñā', meaning: 'to know', examples: ['jñāna', 'jānāti', 'vijñāna'] },
+  { root: '√bhū', meaning: 'to be / become', examples: ['bhava', 'bhavati', 'sambhavāmi'] },
+  { root: '√dhṛ', meaning: 'to hold / sustain', examples: ['dharma', 'dhāraṇā'] },
+  { root: '√yuj', meaning: 'to yoke / unite', examples: ['yoga', 'yukta', 'yuñjan'] },
+  { root: '√vid', meaning: 'to know / find', examples: ['veda', 'vidyā', 'vedānta'] },
+  { root: '√nam', meaning: 'to bow / prostrate', examples: ['namaḥ', 'namāmi', 'namo'] },
+  { root: '√hṛ', meaning: 'to take away / steal', examples: ['hari', 'harati'] },
+  { root: '√śru', meaning: 'to hear / listen', examples: ['śruti', 'śravaṇam'] },
+  { root: '√man', meaning: 'to think / consider', examples: ['mantra', 'manas', 'matvā'] },
+  { root: '√div', meaning: 'to shine / play', examples: ['deva', 'divya', 'dīpta'] },
+  { root: '√muc', meaning: 'to free / release', examples: ['mokṣa', 'mukti', 'vimukta'] },
+  { root: '√budh', meaning: 'to know / awaken', examples: ['buddhi', 'bodha', 'buddha'] },
+  { root: '√śās', meaning: 'to instruct / rule', examples: ['śāstra', 'anuśāsana'] },
+  { root: '√vṛt', meaning: 'to exist / turn', examples: ['vṛtti', 'pravartate'] },
+  { root: '√pad', meaning: 'to go / fall', examples: ['pada', 'prapadyate'] },
+  { root: '√sthā', meaning: 'to stand / stay', examples: ['sthiti', 'sthāna', 'pratiṣṭhā'] },
+  { root: '√ji', meaning: 'to conquer', examples: ['jaya', 'jayati', 'vijaya'] },
+  { root: '√dṛś', meaning: 'to see', examples: ['darśana', 'paśyati', 'dṛṣṭi'] },
+  { root: '√vac', meaning: 'to speak', examples: ['vāc', 'vacana', 'uvāca'] },
+  { root: '√gam', meaning: 'to go', examples: ['āgama', 'gacchati'] },
+  { root: '√mā', meaning: 'to measure / create', examples: ['māyā', 'nirmāṇa'] },
+  { root: '√viś', meaning: 'to enter / pervade', examples: ['viṣṇu', 'viśva'] },
+]
+
 // Look up a word, trying various normalizations
 export function lookupWord(word: string): GlossaryEntry | null {
   const raw = word.toLowerCase().trim()
