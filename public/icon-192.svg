@@ -1,7 +1,24 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="192" height="192" viewBox="0 0 192 192">
   <rect width="192" height="192" rx="32" fill="#7c3aed"/>
-  <text x="96" y="78" text-anchor="middle" font-size="48" font-family="serif" fill="#fbbf24" font-weight="bold">OM</text>
-  <text x="96" y="120" text-anchor="middle" font-size="22" font-family="sans-serif" fill="white" font-weight="600">Sloka</text>
-  <text x="96" y="148" text-anchor="middle" font-size="16" font-family="sans-serif" fill="#c4b5fd">Practice</text>
-  <text x="96" y="175" text-anchor="middle" font-size="11" font-family="serif" fill="#c4b5fd">— ◡ — —</text>
+  <!-- Lotus petals -->
+  <g transform="translate(96,58)" fill="none" stroke="#fbbf24" stroke-width="2" stroke-linecap="round">
+    <ellipse cx="0" cy="-8" rx="6" ry="16" fill="#fbbf24" opacity="0.3"/>
+    <ellipse cx="-14" cy="-4" rx="6" ry="14" transform="rotate(-25)" fill="#fbbf24" opacity="0.25"/>
+    <ellipse cx="14" cy="-4" rx="6" ry="14" transform="rotate(25)" fill="#fbbf24" opacity="0.25"/>
+    <ellipse cx="-22" cy="2" rx="5" ry="12" transform="rotate(-50)" fill="#fbbf24" opacity="0.2"/>
+    <ellipse cx="22" cy="2" rx="5" ry="12" transform="rotate(50)" fill="#fbbf24" opacity="0.2"/>
+  </g>
+  <!-- Flute (bāṁsurī) -->
+  <g transform="translate(96,58)">
+    <line x1="-20" y1="0" x2="20" y2="0" stroke="#fbbf24" stroke-width="3.5" stroke-linecap="round"/>
+    <circle cx="-10" cy="0" r="1.5" fill="#7c3aed"/>
+    <circle cx="-3" cy="0" r="1.5" fill="#7c3aed"/>
+    <circle cx="4" cy="0" r="1.5" fill="#7c3aed"/>
+    <circle cx="11" cy="0" r="1.5" fill="#7c3aed"/>
+  </g>
+  <!-- Hare Kṛṣṇa in Devanagari -->
+  <text x="96" y="100" text-anchor="middle" font-size="20" font-family="serif" fill="#fbbf24" font-weight="bold">हरे कृष्ण</text>
+  <text x="96" y="128" text-anchor="middle" font-size="20" font-family="sans-serif" fill="white" font-weight="600">Śloka</text>
+  <text x="96" y="152" text-anchor="middle" font-size="15" font-family="sans-serif" fill="#c4b5fd">Practice</text>
+  <text x="96" y="177" text-anchor="middle" font-size="10" font-family="serif" fill="#c4b5fd">— ◡ — —</text>
 </svg>
