@@ -363,20 +363,26 @@ function App() {
 
     const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition
     const recognition = new SpeechRecognition()
-    recognition.continuous = true
+    recognition.continuous = false
     recognition.interimResults = true
     recognition.lang = 'en-IN'
+    recognition.maxAlternatives = 3
 
     recognition.onresult = (event: any) => {
-      // Only use finalized results — interim results jump ahead
+      // Use finalized results when available, otherwise show interim for responsiveness
       let finalized = ''
+      let interim = ''
       for (let i = 0; i < event.results.length; i++) {
         if (event.results[i].isFinal) {
           finalized += event.results[i][0].transcript
+        } else {
+          interim += event.results[i][0].transcript
         }
       }
-      if (finalized.trim()) {
-        setTranscript(finalized)
+      // Prefer finalized, but show interim so mobile users see feedback immediately
+      const text = finalized.trim() || interim.trim()
+      if (text) {
+        setTranscript(text)
       }
     }
 
