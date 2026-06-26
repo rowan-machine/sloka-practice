@@ -380,13 +380,13 @@ function App() {
     const SpeechRecognition = (window as any).webkitSpeechRecognition || (window as any).SpeechRecognition
     const recognition = new SpeechRecognition()
     const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent)
-    const isSamsung = /Samsung/i.test(navigator.userAgent)
+    const isIOS = /iPhone|iPad|iPod/i.test(navigator.userAgent)
     recognition.continuous = !isMobile
     recognition.interimResults = true
-    // hi-IN works on desktop (confirmed). Use same everywhere.
-    recognition.lang = 'hi-IN'
+    // Desktop: hi-IN gives Devanagari which we transliterate — best match
+    // iOS: en-IN returns Latin text that matches IAST well
+    recognition.lang = isIOS ? 'en-IN' : 'hi-IN'
     recognition.maxAlternatives = 3
-    console.log('[SR] setup:', { isMobile, isSamsung, lang: recognition.lang, continuous: recognition.continuous })
 
     recognition.onstart = () => {
       console.log('[SR] onstart fired')
@@ -1560,6 +1560,12 @@ function App() {
             {typeof window !== 'undefined' && !('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window) && (
               <div className="mt-3 p-3 bg-yellow-50 border border-yellow-200 rounded-xl text-yellow-800 text-xs text-center">
                 Speech recognition requires Chrome or Edge.
+              </div>
+            )}
+
+            {typeof window !== 'undefined' && /Samsung/i.test(navigator.userAgent) && (
+              <div className="mt-3 p-2.5 bg-blue-50 border border-blue-200 rounded-xl text-blue-700 text-xs text-center">
+                Samsung devices may need the Google app updated for speech recognition. Try Settings → Apps → Google → Update.
               </div>
             )}
           </section>
