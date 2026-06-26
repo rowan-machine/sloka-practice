@@ -1,0 +1,44 @@
+@import "tailwindcss";
+
+body {
+  margin: 0;
+  -webkit-tap-highlight-color: transparent;
+  -webkit-font-smoothing: antialiased;
+  overscroll-behavior-y: none;
+}
+
+/* PWA safe area for notched phones */
+.safe-bottom { padding-bottom: env(safe-area-inset-bottom, 0px); }
+.safe-top { padding-top: env(safe-area-inset-top, 0px); }
+
+/* Smooth scrolling for library */
+.scroll-smooth { scroll-behavior: smooth; }
+.scrollbar-thin::-webkit-scrollbar { width: 4px; }
+.scrollbar-thin::-webkit-scrollbar-track { background: transparent; }
+.scrollbar-thin::-webkit-scrollbar-thumb { background: #d1d5db; border-radius: 2px; }
+
+/* Bottom nav glass effect */
+.glass-nav {
+  backdrop-filter: blur(16px) saturate(180%);
+  -webkit-backdrop-filter: blur(16px) saturate(180%);
+  background: rgba(255, 255, 255, 0.85);
+}
+
+/* Chip/pill buttons */
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.25rem 0.75rem;
+  border-radius: 9999px;
+  font-size: 0.75rem;
+  font-weight: 500;
+  transition: all 0.15s;
+  border: 1px solid transparent;
+  white-space: nowrap;
+  cursor: pointer;
+}
+.chip:hover { opacity: 0.85; }
+.chip-active { background: #7c3aed; color: white; border-color: #7c3aed; }
+.chip-inactive { background: #f3f4f6; color: #6b7280; border-color: #e5e7eb; }
+.chip-inactive:hover { background: #e5e7eb; }
