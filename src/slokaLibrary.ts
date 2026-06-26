@@ -9,6 +9,7 @@ export interface SlokaEntry {
   translation: string
   meter: Meter
   difficulty: Difficulty
+  group?: string  // groups multi-verse bhajans, e.g. 'gurvastakam' — all entries with same group can be added at once
 }
 
 // Difficulty = PRONUNCIATION complexity (dynamic user scoring overlays this)
@@ -110,8 +111,8 @@ export const slokaLibrary: SlokaEntry[] = [
   { id:'man-m1', meter:'mantra', difficulty:'medium', source:'Śrī Guru Praṇāma', reference:'Guru Vandanā', text:`oṁ ajñāna-timirāndhasya\njñānāñjana-śalākayā\ncakṣur unmīlitaṁ yena\ntasmai śrī-gurave namaḥ`, translation:'My spiritual master opened my eyes with the torch of knowledge.' },
   { id:'man-m2', meter:'mantra', difficulty:'medium', source:'Gāyatrī', reference:'Brahma-gāyatrī', text:`oṁ bhūr bhuvaḥ svaḥ\ntat savitur vareṇyaṁ\nbhargo devasya dhīmahi\ndhiyo yo naḥ pracodayāt`, translation:'Let us meditate upon the glorious effulgence of the divine creator.' },
   { id:'man-m3', meter:'mantra', difficulty:'medium', source:'Nṛsiṁha Prayers', reference:'Nṛsiṁha Kavacha', text:`ito nṛsiṁhaḥ parato nṛsiṁho\nyato yato yāmi tato nṛsiṁhaḥ\nbahir nṛsiṁho hṛdaye nṛsiṁho\nnṛsiṁham ādiṁ śaraṇaṁ prapadye`, translation:'Lord Nṛsiṁha is here and there, wherever I go. I surrender to that primeval Lord.' },
-  { id:'man-mh1', meter:'mantra', difficulty:'medium-hard', source:'Dāmodarāṣṭaka', reference:'Dāmodarāṣṭaka 1', text:`namāmīśvaraṁ sac-cid-ānanda-rūpaṁ\nlasat-kuṇḍalaṁ gokule bhrājamanam\nyaśodā-bhiyolūkhalād dhāvamānaṁ\nparāmṛṣṭam atyantato drutya gopyā`, translation:'I bow to the Supreme Lord in bliss form, fleeing from the mortar in Gokula, caught by Yaśodā.' },
-  { id:'man-mh2', meter:'mantra', difficulty:'medium-hard', source:'Gurv-aṣṭaka', reference:'Gurv-aṣṭaka 1', text:`saṁsāra-dāvānala-līḍha-loka-\ntrāṇāya kāruṇya-ghanāghanatvam\nprāptasya kalyāṇa-guṇārṇavasya\nvande guroḥ śrī-caraṇāravindam`, translation:'The guru, an ocean of auspicious qualities, appeared out of compassion to deliver the burning world.' },
+  { id:'man-mh1', meter:'mantra', difficulty:'medium-hard', source:'Dāmodarāṣṭaka', reference:'Dāmodarāṣṭaka 1', group:'damodarastaka', text:`namāmīśvaraṁ sac-cid-ānanda-rūpaṁ\nlasat-kuṇḍalaṁ gokule bhrājamanam\nyaśodā-bhiyolūkhalād dhāvamānaṁ\nparāmṛṣṭam atyantato drutya gopyā`, translation:'I bow to the Supreme Lord in bliss form, fleeing from the mortar in Gokula, caught by Yaśodā.' },
+  { id:'man-mh2', meter:'mantra', difficulty:'medium-hard', source:'Gurv-aṣṭaka', reference:'Gurv-aṣṭaka 1', group:'gurvastakam', text:`saṁsāra-dāvānala-līḍha-loka-\ntrāṇāya kāruṇya-ghanāghanatvam\nprāptasya kalyāṇa-guṇārṇavasya\nvande guroḥ śrī-caraṇāravindam`, translation:'The guru, an ocean of auspicious qualities, appeared out of compassion to deliver the burning world.' },
 
   // ══════ ISKCON BHAJANS ══════
 
@@ -131,8 +132,8 @@ export const slokaLibrary: SlokaEntry[] = [
   { id:'bj-11', meter:'mantra', difficulty:'easy-medium', source:'Narottama dāsa Ṭhākura', reference:'Sapārṣada (Hari Haraye Namaḥ)', text:`hari haraye namaḥ kṛṣṇa yādavāya namaḥ\nyādavāya mādhavāya keśavāya namaḥ\ngopāla govinda rāma śrī-madhusūdana\ngiridharī gopīnātha madana-mohana`, translation:'I offer my obeisances to Hari, Kṛṣṇa, Yādava, Mādhava, Keśava — Gopāla, Govinda, Rāma, Madhusūdana, Giridharī, Gopīnātha, Madana-mohana.' },
 
   // Śrīla Viśvanātha Cakravartī Ṭhākura
-  { id:'bj-12', meter:'mantra', difficulty:'medium-hard', source:'Viśvanātha Cakravartī Ṭhākura', reference:'Gurv-aṣṭaka 2', text:`mahāprabhoḥ kīrtana-nṛtya-gīta-\nvāditra-mādyan-manaso rasena\nromāñca-kampāśru-taraṅga-bhājo\nvande guroḥ śrī-caraṇāravindam`, translation:'The guru is always chanting, dancing, and playing instruments, overwhelmed by ecstasy. I worship his lotus feet.' },
-  { id:'bj-13', meter:'mantra', difficulty:'medium-hard', source:'Viśvanātha Cakravartī Ṭhākura', reference:'Gurv-aṣṭaka 7', text:`sākṣād-dharitvena samasta-śāstrair\nuktas tathā bhāvyata eva sadbhiḥ\nkintu prabhor yaḥ priya eva tasya\nvande guroḥ śrī-caraṇāravindam`, translation:'The guru is worshipped as the direct manifestation of the Lord, yet he is most dear to the Lord. I worship his lotus feet.' },
+  { id:'bj-12', meter:'mantra', difficulty:'medium-hard', source:'Gurv-aṣṭaka', reference:'Gurv-aṣṭaka 2', group:'gurvastakam', text:`mahāprabhoḥ kīrtana-nṛtya-gīta-\nvāditra-mādyan-manaso rasena\nromāñca-kampāśru-taraṅga-bhājo\nvande guroḥ śrī-caraṇāravindam`, translation:'The guru is always chanting, dancing, and playing instruments, overwhelmed by ecstasy. I worship his lotus feet.' },
+  { id:'bj-13', meter:'mantra', difficulty:'medium-hard', source:'Gurv-aṣṭaka', reference:'Gurv-aṣṭaka 7', group:'gurvastakam', text:`sākṣād-dharitvena samasta-śāstrair\nuktas tathā bhāvyata eva sadbhiḥ\nkintu prabhor yaḥ priya eva tasya\nvande guroḥ śrī-caraṇāravindam`, translation:'The guru is worshipped as the direct manifestation of the Lord, yet he is most dear to the Lord. I worship his lotus feet.' },
 
   // Popular kīrtana refrains
   { id:'bj-14', meter:'mantra', difficulty:'easy', source:'Kīrtana', reference:'Nitāi-Gaura Nām', text:`nitāi-gaura hari bol\nhari bol hari bol hari bol\nnitāi-gaura hari bol\nhari bol hari bol hari bol`, translation:'Chant the names of Nitāi and Gaura! Chant the name of Hari!' },
@@ -146,6 +147,132 @@ export const slokaLibrary: SlokaEntry[] = [
 
   // Śrīla Rūpa Gosvāmī
   { id:'bj-20', meter:'mantra', difficulty:'medium-hard', source:'Rūpa Gosvāmī', reference:'Namaḥ Mahā-vadānyāya', text:`namo mahā-vadānyāya\nkṛṣṇa-prema-pradāya te\nkṛṣṇāya kṛṣṇa-caitanya-\nnāmne gaura-tviṣe namaḥ`, translation:'I bow to the most munificent incarnation, who freely gives love of Kṛṣṇa — to Lord Kṛṣṇa Himself, appearing with a golden complexion as Kṛṣṇa Caitanya.' },
+
+  // ══════ COMPLETE GURV-AṢṬAKA (missing verses 3-6, 8) ══════
+
+  { id:'ga-3', meter:'mantra', difficulty:'medium-hard', source:'Gurv-aṣṭaka', reference:'Gurv-aṣṭaka 3', group:'gurvastakam', text:`śrī-vigrahārādhana-nitya-nānā-\nśṛṅgāra-tan-mandira-mārjanādau\nyuktasya bhaktāṁś ca niyuñjato 'pi\nvande guroḥ śrī-caraṇāravindam`, translation:'The guru is always engaged in decorating the Deity and engaging his disciples in temple service. I worship his lotus feet.' },
+  { id:'ga-4', meter:'mantra', difficulty:'medium-hard', source:'Gurv-aṣṭaka', reference:'Gurv-aṣṭaka 4', group:'gurvastakam', text:`catur-vidha-śrī-bhagavat-prasāda-\nsvādv-anna-tṛptān hari-bhakta-saṅghān\nkṛtvaiva tṛptiṁ bhajataḥ sadaiva\nvande guroḥ śrī-caraṇāravindam`, translation:'The guru is always satisfied seeing devotees enjoy the four kinds of prasādam. I worship his lotus feet.' },
+  { id:'ga-5', meter:'mantra', difficulty:'medium-hard', source:'Gurv-aṣṭaka', reference:'Gurv-aṣṭaka 5', group:'gurvastakam', text:`śrī-rādhikā-mādhavayor apāra-\nmādhurya-līlā-guṇa-rūpa-nāmnām\nprati-kṣaṇāsvādana-lolupasya\nvande guroḥ śrī-caraṇāravindam`, translation:'The guru always relishes the unlimited sweet pastimes, qualities, forms and names of Rādhā-Mādhava. I worship his lotus feet.' },
+  { id:'ga-6', meter:'mantra', difficulty:'medium-hard', source:'Gurv-aṣṭaka', reference:'Gurv-aṣṭaka 6', group:'gurvastakam', text:`nikuñja-yūno rati-keli-siddhyai\nyā yālibhir yuktir apekṣaṇīyā\ntatrāti-dākṣyād ati-vallabhasya\nvande guroḥ śrī-caraṇāravindam`, translation:'The guru is very expert in assisting the gopīs in arranging the loving affairs of Rādhā-Kṛṣṇa. I worship his lotus feet.' },
+  { id:'ga-8', meter:'mantra', difficulty:'medium', source:'Gurv-aṣṭaka', reference:'Gurv-aṣṭaka 8', group:'gurvastakam', text:`yasya prasādād bhagavat-prasādo\nyasyāprasādān na gatiḥ kuto 'pi\ndhyāyan stuvaṁs tasya yaśas tri-sandhyaṁ\nvande guroḥ śrī-caraṇāravindam`, translation:'By the guru\'s mercy one receives Kṛṣṇa\'s mercy. Without his grace, there is no means of advancement. I worship his lotus feet.' },
+
+  // ══════ MAṄGALA ĀRATĪ — Udilo Aruṇa ══════
+
+  { id:'ma-1', meter:'mantra', difficulty:'medium', source:'Maṅgala Āratī', reference:'Udilo Aruṇa (1)', group:'udilo-aruna', text:`udilo aruṇa pūraba-bhāge\ndvija-maṇi gorā amani jāge\nbhakata-samūha loiyā sāthe\ngelā nagara-brāje`, translation:'When the eastern horizon glowed, the jewel of the twice-born, Lord Gaurāṅga, awoke and took His devotees to the streets of the city.' },
+  { id:'ma-2', meter:'mantra', difficulty:'easy-medium', source:'Maṅgala Āratī', reference:'Udilo Aruṇa (2)', group:'udilo-aruna', text:`tāthai tāthai bājalo khol\nghana ghana tāhe jhā̃jera rol\npreme ḍhala ḍhala soṇāra aṅga\ncaraṇe nūpura bāje`, translation:'The mṛdaṅgas sounded tāthai tāthai and the cymbals played rhythmically. His golden body swayed in ecstasy, and ankle bells jingled on His feet.' },
+  { id:'ma-3', meter:'mantra', difficulty:'medium', source:'Maṅgala Āratī', reference:'Udilo Aruṇa (3)', group:'udilo-aruna', text:`mukunda mādhava yādava hari\nbolore bolore vadana bhari'\nmiśra śrīvāsa ādi bhakta-bṛnda\nlaoyāi bole hari hari`, translation:'Fill your mouths and chant — Mukunda! Mādhava! Yādava! Hari! Led by Miśra, Śrīvāsa, and other devotees calling Hari Hari!' },
+
+  // ══════ ADDITIONAL GAURA ĀRATĪ VERSES ══════
+
+  { id:'ar-1', meter:'mantra', difficulty:'medium', source:'Gaura Āratī', reference:'Gaura Āratī (2)', group:'gaura-arati', text:`dakṣiṇe nitāicā̃da bāme gadādhara\nnikate advaita śrīnivāsa chatra-dhara\nbosiyāche gorācā̃da ratna-siṁhāsane\nārati koroye brahmā-ādi deva-gaṇe`, translation:'To the right is Nityānanda, to the left Gadādhara, nearby Advaita and Śrīnivāsa holding an umbrella. Gorācānda sits on a jeweled throne while Brahmā and the devas perform His āratī.' },
+  { id:'ar-2', meter:'mantra', difficulty:'medium', source:'Gaura Āratī', reference:'Gaura Āratī (3)', group:'gaura-arati', text:`nayanera koṇe gorā jāhāra parasa\nsei se paraśa-mani jāhāra sparśe hoy āśa\ngorā-sundara dekhiyā lukāya caraṇe\ngorā-aṅge jhalake hīrā mandire`, translation:'He whose glance from the corner of His eyes, that touchstone, awakens desire in all. Seeing beautiful Gorā, everyone takes shelter of His feet.' },
+
+  // ══════ NṚSIṀHA PRAYERS (sung after every āratī) ══════
+
+  { id:'nr-1', meter:'mantra', difficulty:'easy-medium', source:'Nṛsiṁha Prayers', reference:'Nṛsiṁha Praṇāma (full)', group:'nrsimha-prayers', text:`namas te narasiṁhāya\nprahlādāhlāda-dāyine\nhiraṇyakaśipor vakṣaḥ-\nśilā-ṭaṅka-nakhālaye`, translation:'Obeisances to Lord Narasiṁha who gives joy to Prahlāda and whose nails are like chisels on the stonelike chest of Hiraṇyakaśipu.' },
+  { id:'nr-2', meter:'mantra', difficulty:'medium', source:'Nṛsiṁha Prayers', reference:'Nṛsiṁha Prayer 2', group:'nrsimha-prayers', text:`ito nṛsiṁhaḥ parato nṛsiṁho\nyato yato yāmi tato nṛsiṁhaḥ\nbahir nṛsiṁho hṛdaye nṛsiṁho\nnṛsiṁham ādiṁ śaraṇaṁ prapadye`, translation:'Lord Nṛsiṁha is here and there. Wherever I go He is there. He is in the heart, He is outside. I surrender to that primeval Lord Nṛsiṁha.' },
+  { id:'nr-3', meter:'mantra', difficulty:'medium', source:'Nṛsiṁha Prayers', reference:'Nṛsiṁha Prayer 3', group:'nrsimha-prayers', text:`tava kara-kamala-vare nakham adbhuta-śṛṅgaṁ\ndalita-hiraṇyakaśipu-tanu-bhṛṅgam\nkeśava dhṛta-narahari-rūpa jaya jagadīśa hare`, translation:'O Keśava! Your wondrous lion-man claws tore apart the wasp-like body of Hiraṇyakaśipu. O Lord of the universe, all glories to You!' },
+
+  // ══════ TULASĪ PRAYERS ══════
+
+  { id:'tul-1', meter:'mantra', difficulty:'easy-medium', source:'Tulasī Prayers', reference:'Tulasī Kṛṣṇa-preyasī', group:'tulasi-prayers', text:`namo namaḥ tulasī kṛṣṇa-preyasi namo namaḥ\nrādhā-kṛṣṇa-sevā pābo ei abhilāṣī`, translation:'I repeatedly offer obeisances to Tulasī, who is dear to Kṛṣṇa. My desire is to attain the service of Rādhā-Kṛṣṇa.' },
+  { id:'tul-2', meter:'mantra', difficulty:'easy-medium', source:'Tulasī Prayers', reference:'Tulasī Pradakṣiṇa', group:'tulasi-prayers', text:`yāni kāni ca pāpāni\nbrahma-hatyādikāni ca\ntāni tāni praṇaśyanti\npradakṣiṇaḥ pade pade`, translation:'By circumambulating Tulasī-devī, all sins including brahma-hatyā are destroyed at every step.' },
+
+  // ══════ GURU PŪJĀ — Śrī-guru-caraṇa-padma ══════
+
+  { id:'gp-1', meter:'mantra', difficulty:'easy', source:'Guru Pūjā', reference:'Śrī Guru-caraṇa-padma (1)', group:'guru-puja', text:`śrī-guru-caraṇa-padma kevala-bhakati-sadma\nbando muñi sāvadhāna mate\njā̃hāra prasāde bhāi e bhava toriyā jāi\nkṛṣṇa-prāpti hoy jā̃hā ha'te`, translation:'The lotus feet of the guru are the abode of pure devotion. I bow to them with care. By his mercy we cross the ocean of birth and death and attain Kṛṣṇa.' },
+  { id:'gp-2', meter:'mantra', difficulty:'easy-medium', source:'Guru Pūjā', reference:'Śrī Guru-caraṇa-padma (2)', group:'guru-puja', text:`guru-mukha-padma-vākya cittete koriyā aikya\nār nā koriho mane āśā\nśrī-guru-caraṇe rati ei se uttama-gati\nje prasāde pūre sarva āśā`, translation:'Make the words from the guru\'s lotus mouth one with your heart, and do not desire anything else. Attachment to the guru\'s lotus feet is the supreme goal; by his mercy all desires are fulfilled.' },
+
+  // ══════ DĀMODARĀṢṬAKA (missing verses) ══════
+
+  { id:'da-2', meter:'mantra', difficulty:'medium-hard', source:'Dāmodarāṣṭaka', reference:'Dāmodarāṣṭaka 2', group:'damodarastaka', text:`rudantaṁ muhur netra-yugmaṁ mṛjantam\nlalāṭa-phalake viśadaṁ sva-dantam\nithambhūta-lakṣmī-tanūn-nāṅkitaṁ tad-\ndāmodara-saṁsāra-sindhum-upetam`, translation:'He cries repeatedly, rubbing both eyes with His hands. His teeth shine against His forehead. This Dāmodara — I approach Him.' },
+  { id:'da-3', meter:'mantra', difficulty:'medium-hard', source:'Dāmodarāṣṭaka', reference:'Dāmodarāṣṭaka 3', group:'damodarastaka', text:`itīdṛk sva-līlābhir ānanda-kuṇḍe\nsva-ghoṣaṁ nimajjantam ākhyāpayantam\ntadīyeśita-jñeṣu bhaktair jitatvaṁ\npunaḥ prematas taṁ śatāvṛtti vande`, translation:'By such pastimes He floods the residents of Gokula with bliss. He shows that He is conquered by His pure devotees. Again and again with love I worship Him.' },
+
+  // ══════ SANDHYĀ ĀRATĪ SONGS ══════
+
+  { id:'sa-1', meter:'mantra', difficulty:'medium', source:'Sandhyā Āratī', reference:'Bhoga Āratī (1)', group:'bhoga-arati', text:`bhaja bhakata-vatsala śrī-gaurahari\nśrī-gaurahari sohi goṣṭha-bihārī\nnanda-yaśomatī-citta-hārī`, translation:'Worship the Lord who is dear to the devotees, Śrī Gaurahari, who enjoys pastimes in the cow-pastures and steals the hearts of Nanda and Yaśodā.' },
+
+  // ══════ ŚAYANA ĀRATĪ SONGS ══════
+
+  { id:'sy-1', meter:'mantra', difficulty:'easy-medium', source:'Śayana Āratī', reference:'Jaya Jaya Gopāla', text:`jaya jaya gopāla hare jaya jaya gopāla\njaya jaya gopāla hare jaya jaya gopāla`, translation:'All glories to Gopāla! All glories to Hari!' },
+  { id:'sy-2', meter:'mantra', difficulty:'medium', source:'Śayana Āratī', reference:'Jaya Rādhā-Mādhava (Śayana)', text:`jaya rādhā-mādhava kuñja-bihārī\ngopī-jana-vallabha giri-vara-dhārī\nyaśodā-nandana braja-jana-raṇjana\nyamunā-tīra-vana-cārī`, translation:'All glories to Rādhā-Mādhava, the enjoyer of the groves, the lifter of Govardhana, son of Yaśodā, who wanders along the banks of the Yamunā.' },
+
+  // ══════ BHĀGAVATAM CLASS OPENING PRAYERS ══════
+
+  { id:'bc-1', meter:'mantra', difficulty:'easy', source:'Bhāgavatam Class', reference:'Oṁ Namo Bhagavate', text:`oṁ namo bhagavate vāsudevāya\noṁ namo bhagavate vāsudevāya\noṁ namo bhagavate vāsudevāya`, translation:'I offer my obeisances unto the Supreme Lord Vāsudeva. (Chanted three times before class.)' },
+  { id:'bc-2', meter:'mantra', difficulty:'medium', source:'Bhāgavatam Class', reference:'SB 1.2.11 (Vadanti)', text:`vadanti tat tattva-vidas\ntattvaṁ yaj jñānam advayam\nbrahmeti paramātmeti\nbhagavān iti śabdyate`, translation:'Learned transcendentalists who know the Absolute Truth call this nondual substance Brahman, Paramātmā or Bhagavān.' },
+  { id:'bc-3', meter:'mantra', difficulty:'medium', source:'Bhāgavatam Class', reference:'SB 1.1.1 (Janmādy)', text:`janmādy asya yato 'nvayād itarataś\ncārtheṣv abhijñaḥ svarāṭ\ntene brahma hṛdā ya ādi-kavaye\nmuhyanti yat sūrayaḥ`, translation:'I meditate upon Lord Śrī Kṛṣṇa, the Absolute Truth, the source of creation, from whom even Brahmā received Vedic knowledge.' },
+
+  // ══════ UPADEŚĀMṚTA (Rūpa Gosvāmī) ══════
+
+  { id:'ua-1', meter:'anushtubh', difficulty:'medium', source:'Upadeśāmṛta', reference:'Upadeśāmṛta 1', text:`vāco vegaṁ manasaḥ krodha-vegaṁ\njihvā-vegam udaropastha-vegam\netān vegān yo viṣaheta dhīraḥ\nsarvām apīmāṁ pṛthivīṁ sa śiṣyāt`, translation:'A wise person who can tolerate the urges of speech, mind, anger, tongue, belly and genitals can make disciples all over the world.' },
+  { id:'ua-2', meter:'anushtubh', difficulty:'medium', source:'Upadeśāmṛta', reference:'Upadeśāmṛta 2', text:`atyāhāraḥ prayāsaś ca\nprajalpo niyamāgrahaḥ\njana-saṅgaś ca laulyaṁ ca\nṣaḍbhir bhaktir vinaśyati`, translation:'Devotion is destroyed by overeating, over-endeavoring, idle talk, neglecting rules, bad association, and greed.' },
+  { id:'ua-3', meter:'anushtubh', difficulty:'medium', source:'Upadeśāmṛta', reference:'Upadeśāmṛta 3', text:`utsāhān niścayād dhairyāt\ntat-tat-karma-pravartanāt\nsaṅga-tyāgāt sato vṛtteḥ\nṣaḍbhir bhaktiḥ prasidhyati`, translation:'Devotion is advanced by enthusiasm, confidence, patience, proper activities, good association, and following the saintly path.' },
+  { id:'ua-5', meter:'anushtubh', difficulty:'medium-hard', source:'Upadeśāmṛta', reference:'Upadeśāmṛta 5', text:`kṛṣṇeti yasya giri taṁ manasādriyeta\ndīkṣāsti cet praṇatibhiś ca bhajantam īśam\nśuśrūṣayā bhajana-vijñam ananyam anya-\nnindādi-śūnya-hṛdam īpsita-saṅga-labdhyā`, translation:'One should mentally honor those who chant Kṛṣṇa\'s name, bow before initiates, and serve pure devotees whose hearts are free from fault-finding.' },
+  { id:'ua-6', meter:'anushtubh', difficulty:'medium-hard', source:'Upadeśāmṛta', reference:'Upadeśāmṛta 6', text:`dṛṣṭaiḥ svabhāva-janitair vapuṣaś ca doṣair\nna prākṛtatvam iha bhakta-janasya paśyet\ngaṅgāmbhasāṁ na khalu budbuda-phena-paṅkair\nbrahma-dravatvam apagacchati nīra-dharmaiḥ`, translation:'Do not see a devotee from a material point of view, just as the Gaṅgā does not lose its spiritual nature due to bubbles and foam.' },
+  { id:'ua-8', meter:'anushtubh', difficulty:'hard', source:'Upadeśāmṛta', reference:'Upadeśāmṛta 8', text:`smṛtyoḥ krameṇa rasanā-manasī niyojya\ntiṣṭhan vraje tad-anurāgi janānugāmī\nkālaṁ nayed akhilam ity upadeśa-sāram`, translation:'Gradually engage the tongue and mind in remembrance. Reside in Vraja, following those who are attached to the Lord. This is the essence of all instruction.' },
+  { id:'ua-9', meter:'anushtubh', difficulty:'hard', source:'Upadeśāmṛta', reference:'Upadeśāmṛta 9', text:`vaikuṇṭhāj janito varā madhu-purī tatrāpi rāsotsavād\nvṛndāraṇyam udāra-pāṇi-ramaṇāt tatrāpi govardhanaḥ\nrādhā-kuṇḍam ihāpi gokula-pateḥ premāmṛtāplāvanāt\nkuryād asya virājato giri-taṭe sevāṁ vivekī na kaḥ`, translation:'Superior to Vaikuṇṭha is Mathurā, better still is Vṛndāvana, yet more so Govardhana, and best of all is Rādhā-kuṇḍa. What intelligent person will not serve there?' },
+
+  // ══════ BHAKTI-RASĀMṚTA-SINDHU (Rūpa Gosvāmī) ══════
+
+  { id:'brs-1.1.11', meter:'anushtubh', difficulty:'medium-hard', source:'Bhakti-rasāmṛta-sindhu', reference:'BRS 1.1.11', text:`anyābhilāṣitā-śūnyaṁ\njñāna-karmādy-anāvṛtam\nānukūlyena kṛṣṇānu-\nśīlanaṁ bhaktir uttamā`, translation:'The highest devotion is that which is favorable to Kṛṣṇa, free from selfish desires, and uncovered by jñāna or karma.' },
+  { id:'brs-1.1.12', meter:'anushtubh', difficulty:'hard', source:'Bhakti-rasāmṛta-sindhu', reference:'BRS 1.1.12', text:`sarvopādhi-vinirmuktaṁ\ntat-paratvena nirmalam\nhṛṣīkeṇa hṛṣīkeśa-\nsevanaṁ bhaktir ucyate`, translation:'Bhakti is the engagement of all senses in the service of the master of the senses, free from all designations, purified by transcendence.' },
+  { id:'brs-1.2.187', meter:'anushtubh', difficulty:'medium', source:'Bhakti-rasāmṛta-sindhu', reference:'BRS 1.2.187', text:`iha yasya harer dāsye\nkarmaṇā manasā girā\nnikhilāsv apy avasthāsu\njīvan-muktaḥ sa ucyate`, translation:'One who engages body, mind and words in the service of Hari in all circumstances is considered liberated even while living.' },
+  { id:'brs-1.2.234', meter:'anushtubh', difficulty:'medium-hard', source:'Bhakti-rasāmṛta-sindhu', reference:'BRS 1.2.234', text:`ataḥ śrī-kṛṣṇa-nāmādi\nna bhaved grāhyam indriyaiḥ\nsevonmukhe hi jihvādau\nsvayam eva sphuraty adaḥ`, translation:'The name of Kṛṣṇa cannot be grasped by material senses. It manifests on the tongue when one has the attitude of service.' },
+
+  // ══════ VEDĀNTA-SŪTRA ══════
+
+  { id:'vs-1.1.1', meter:'longer', difficulty:'medium', source:'Vedānta-sūtra', reference:'VS 1.1.1', text:`athāto brahma-jijñāsā`, translation:'Now, therefore, let us inquire about Brahman — the Absolute Truth.' },
+  { id:'vs-1.1.2', meter:'longer', difficulty:'medium', source:'Vedānta-sūtra', reference:'VS 1.1.2', text:`janmādy asya yataḥ`, translation:'Brahman is that from which everything originates.' },
+  { id:'vs-1.1.3', meter:'longer', difficulty:'hard', source:'Vedānta-sūtra', reference:'VS 1.1.3', text:`śāstra-yonitvāt`, translation:'Brahman is known through the scriptures.' },
+
+  // ══════ NĀRADA BHAKTI SŪTRA ══════
+
+  { id:'nbs-2', meter:'longer', difficulty:'easy-medium', source:'Nārada Bhakti Sūtra', reference:'NBS 2', text:`sā tv asmin parama-prema-rūpā`, translation:'That devotion is of the nature of supreme love for Him.' },
+  { id:'nbs-3', meter:'longer', difficulty:'easy-medium', source:'Nārada Bhakti Sūtra', reference:'NBS 3', text:`amṛta-svarūpā ca`, translation:'And it is immortal in nature.' },
+  { id:'nbs-5', meter:'longer', difficulty:'easy', source:'Nārada Bhakti Sūtra', reference:'NBS 5', text:`yat prāpya na kiñcid vāñchati na śocati na dveṣṭi na ramate notsāhī bhavati`, translation:'Having obtained it, one desires nothing, grieves for nothing, hates nothing, delights in nothing else, and makes no selfish endeavor.' },
+  { id:'nbs-36', meter:'longer', difficulty:'medium', source:'Nārada Bhakti Sūtra', reference:'NBS 36', text:`tad eva sādhana-gaṇānāṁ kāraṇaṁ matiḥ`, translation:'The means of achieving devotion is devotion itself, according to wise opinion.' },
+  { id:'nbs-68', meter:'longer', difficulty:'medium', source:'Nārada Bhakti Sūtra', reference:'NBS 68', text:`sat-saṅgo labhyate sarvathā\ndurlabho 'gamyo 'moghaś ca\nlabhyate tat-kṛpayaiva`, translation:'The association of saints is obtained only by the Lord\'s mercy. It is difficult to attain, unfathomable, and never fails.' },
+
+  // ══════ ĪŚOPANIṢAD (additional) ══════
+
+  { id:'iso-2', meter:'anushtubh', difficulty:'medium', source:'Īśopaniṣad', reference:'Īśo 2', text:`kurvann eveha karmāṇi\njijīviṣec chataṁ samāḥ\nevaṁ tvayi nānyatheto 'sti\nna karma lipyate nare`, translation:'One may aspire to live for hundreds of years if he works in accordance with the Lord. Thus karma does not bind.' },
+  { id:'iso-12', meter:'anushtubh', difficulty:'medium-hard', source:'Īśopaniṣad', reference:'Īśo 12', text:`andhaṁ tamaḥ praviśanti\nye 'sambhūtim upāsate\ntato bhūya iva te tamo\nya u sambhūtyām ratāḥ`, translation:'Those who worship the demigods enter blinding darkness, and those who worship the impersonal Absolute enter even greater darkness.' },
+  { id:'iso-15', meter:'anushtubh', difficulty:'hard', source:'Īśopaniṣad', reference:'Īśo 15', text:`hiraṇmayena pātreṇa\nsatyasyāpihitaṁ mukham\ntat tvaṁ pūṣann apāvṛṇu\nsatya-dharmāya dṛṣṭaye`, translation:'O my Lord, sustainer, the face of truth is covered by Your golden effulgence. Remove it so I may see You.' },
+  { id:'iso-18', meter:'anushtubh', difficulty:'hard', source:'Īśopaniṣad', reference:'Īśo 18', text:`agne naya supathā rāye asmān\nviśvāni deva vayunāni vidvān\nyuyodhy asmaj juhurāṇam eno\nbhūyiṣṭhāṁ te nama-uktiṁ vidhema`, translation:'O Lord, lead us on the right path. You know all our deeds. Free us from sinful reactions. We offer our obeisances again and again.' },
+
+  // ══════ CAITANYA-CARITĀMṚTA (additional) ══════
+
+  { id:'cc-mad-6.254', meter:'anushtubh', difficulty:'medium-hard', source:'Caitanya-caritāmṛta', reference:'CC Madhya 6.254', text:`nāhaṁ vipro na ca nara-patir nāpi vaiśyo na śūdro\nnāhaṁ varṇī na ca gṛha-patir no vanastho yatir vā\nkintu prodyan-nikhila-paramānanda-pūrnāmṛtābdher\ngopī-bhartuḥ pada-kamalayor dāsa-dāsānudāsaḥ`, translation:'I am not a brāhmaṇa, kṣatriya, vaiśya, or śūdra. I am the servant of the servant of the servant of the gopīs\' beloved.' },
+  { id:'cc-mad-19.151', meter:'anushtubh', difficulty:'medium', source:'Caitanya-caritāmṛta', reference:'CC Madhya 19.151', text:`brahmāṇḍa bhramite kona bhāgyavān jīva\nguru-kṛṣṇa-prasāde pāya bhakti-latā-bīja`, translation:'Wandering throughout the universe, some fortunate soul receives the seed of the bhakti creeper by the mercy of guru and Kṛṣṇa.' },
+  { id:'cc-adi-1.14', meter:'anushtubh', difficulty:'easy-medium', source:'Caitanya-caritāmṛta', reference:'CC Ādi 1.14', text:`vande śrī-kṛṣṇa-caitanya-\nnityānandau sahoditau\ngauḍodaye puṣpavantau\ncitrau śan-dau tamo-nudau`, translation:'I worship Śrī Kṛṣṇa Caitanya and Nityānanda, who rose simultaneously like the sun and moon to dispel the darkness of ignorance.' },
+  { id:'cc-adi-17.31', meter:'anushtubh', difficulty:'medium', source:'Caitanya-caritāmṛta', reference:'CC Ādi 17.31', text:`tṛṇād api sunīcena\ntaror api sahiṣṇunā\namāninā mānadena\nkīrtanīyaḥ sadā hariḥ`, translation:'One who is humbler than grass, more tolerant than a tree, offering respect to others without expecting any — can constantly chant the holy name.' },
+  { id:'cc-mad-22.107', meter:'anushtubh', difficulty:'medium-hard', source:'Caitanya-caritāmṛta', reference:'CC Madhya 22.107', text:`nityānanda-svarūpaṁ śrī-\nadvaita-prakāśaṁ ca yo 'vatāra-viśeṣān\njānāti tattvatah so 'yaṁ\nmukto bhavati saṁsṛteḥ`, translation:'One who understands the truth about the Lord\'s incarnations and expansions becomes liberated from material existence.' },
+
+  // ══════ ŚRĪMAD-BHĀGAVATAM (advanced — higher cantos) ══════
+
+  { id:'sb-1.1.2', meter:'longer', difficulty:'hard', source:'Śrīmad-Bhāgavatam', reference:'ŚB 1.1.2', text:`dharmaḥ projjhita-kaitavo 'tra paramo nirmatsarāṇāṁ satāṁ\nvedyaṁ vāstavam atra vastu śivadaṁ tāpa-trayonmūlanam\nśrīmad-bhāgavate mahā-muni-kṛte kiṁ vā parair īśvaraḥ\nsadyo hṛdy avarudhyate 'tra kṛtibhiḥ śuśrūṣubhis tat-kṣaṇāt`, translation:'In Śrīmad-Bhāgavatam, completely rejecting all cheating religion, the highest truth is presented for the non-envious.' },
+  { id:'sb-3.29.11-12', meter:'anushtubh', difficulty:'medium', source:'Śrīmad-Bhāgavatam', reference:'ŚB 3.29.11-12', text:`mad-guṇa-śruti-mātreṇa\nmayi sarva-guhāśaye\nmano-gatir avicchinnā\nyathā gaṅgāmbhaso 'mbudhau`, translation:'Upon hearing My transcendental qualities, an uninterrupted flow of devotion enters the heart, like the Gaṅgā flowing to the ocean.' },
+  { id:'sb-4.31.14', meter:'anushtubh', difficulty:'medium-hard', source:'Śrīmad-Bhāgavatam', reference:'ŚB 4.31.14', text:`yathā taror mūla-niṣecanena\ntṛpyanti tat-skandha-bhujopaśākhāḥ\nprāṇopahārāc ca yathendriyāṇāṁ\ntathaiva sarvārhaṇam acyutejyā`, translation:'As watering the root of a tree nourishes all parts, and as food enlivens all senses, worshiping Acyuta satisfies everyone.' },
+  { id:'sb-5.5.1', meter:'longer', difficulty:'hard', source:'Śrīmad-Bhāgavatam', reference:'ŚB 5.5.1', text:`nāyaṁ deho deha-bhājāṁ nṛ-loke\nkaṣṭān kāmān arhate viḍ-bhujāṁ ye\ntapo divyaṁ putrakā yena sattvaṁ\nśuddhyed yasmād brahma-saukhyaṁ tv anantam`, translation:'The human body is not meant for sense gratification like hogs. One should undergo austerities for purification, which leads to unlimited spiritual bliss.' },
+  { id:'sb-5.18.12', meter:'anushtubh', difficulty:'medium', source:'Śrīmad-Bhāgavatam', reference:'ŚB 5.18.12', text:`yasyāsti bhaktir bhagavaty akiñcanā\nsarvair guṇais tatra samāsate surāḥ\nharāv abhaktasya kuto mahad-guṇā\nmano-rathenāsati dhāvato bahiḥ`, translation:'All demigods and their qualities reside in one who has unflinching devotion. But where are good qualities in a non-devotee whose mind runs after the external?' },
+  { id:'sb-6.1.13-14', meter:'anushtubh', difficulty:'hard', source:'Śrīmad-Bhāgavatam', reference:'ŚB 6.1.13-14', text:`tapasā brahmacaryeṇa\nśamena ca damena ca\ntyāgena satya-śaucābhyāṁ\nyamena niyamena vā\ndeha-vāg-buddhijaṁ dhīrā\ndharmajñāḥ śraddhayānvitāḥ\nkṣipanty aghaṁ mahad api\nveṇu-gulmam ivānalaḥ`, translation:'Through austerity, celibacy, self-control, charity, truthfulness, and cleanliness, wise men burn even the greatest sins like fire burns bamboo.' },
+  { id:'sb-11.14.23', meter:'anushtubh', difficulty:'medium-hard', source:'Śrīmad-Bhāgavatam', reference:'ŚB 11.14.23', text:`bhaktyāham ekayā grāhyaḥ\nśraddhayātmā priyaḥ satām\nbhaktiḥ punāti man-niṣṭhā\nśva-pākān api sambhavāt`, translation:'I can be attained only by devotion with faith. I am dear to the saintly. Devotion fixed on Me purifies even the dog-eaters from birth.' },
+
+  // ══════ PREMA-VIVARTA (Jagadānanda Paṇḍita) ══════
+
+  { id:'pv-7.3', meter:'mantra', difficulty:'medium', source:'Prema-vivarta', reference:'PV 7.3', text:`gaura āmāra ye saba sthāne\nkoralo bhramaṇa raṅge\nse-saba sthāna heribo āmi\npraṇayi-bhakata-saṅge`, translation:'All the places where Lord Gaura wandered in ecstasy — I will visit them in the company of loving devotees.' },
+
+  // ══════ ADDITIONAL BHAGAVAD-GĪTĀ (philosophical depth) ══════
+
+  { id:'bg-2.12', meter:'anushtubh', difficulty:'medium', source:'Bhagavad-gītā', reference:'BG 2.12', text:`na tv evāhaṁ jātu nāsaṁ\nna tvaṁ neme janādhipāḥ\nna caiva na bhaviṣyāmaḥ\nsarve vayam ataḥ param`, translation:'Never was there a time when I did not exist, nor you, nor any of these kings; and in the future none of us shall cease to exist.' },
+  { id:'bg-2.13', meter:'anushtubh', difficulty:'medium', source:'Bhagavad-gītā', reference:'BG 2.13', text:`dehino 'smin yathā dehe\nkaumāraṁ yauvanaṁ jarā\ntathā dehāntara-prāptir\ndhīras tatra na muhyati`, translation:'As the embodied soul continuously passes from childhood to youth to old age, similarly it passes into another body at death.' },
+  { id:'bg-2.14', meter:'anushtubh', difficulty:'medium', source:'Bhagavad-gītā', reference:'BG 2.14', text:`mātrā-sparśās tu kaunteya\nśītoṣṇa-sukha-duḥkha-dāḥ\nāgamāpāyino 'nityās\ntāṁs titikṣasva bhārata`, translation:'The appearance and disappearance of happiness and distress are like winter and summer seasons. One must learn to tolerate them.' },
+  { id:'bg-3.27', meter:'anushtubh', difficulty:'medium-hard', source:'Bhagavad-gītā', reference:'BG 3.27', text:`prakṛteḥ kriyamāṇāni\nguṇaiḥ karmāṇi sarvaśaḥ\nahaṅkāra-vimūḍhātmā\nkartāham iti manyate`, translation:'All activities are carried out by the modes of material nature. The soul bewildered by false ego thinks, "I am the doer."' },
+  { id:'bg-7.14', meter:'anushtubh', difficulty:'medium-hard', source:'Bhagavad-gītā', reference:'BG 7.14', text:`daivī hy eṣā guṇa-mayī\nmama māyā duratyayā\nmām eva ye prapadyante\nmāyām etāṁ taranti te`, translation:'This divine energy of Mine consisting of the three modes is difficult to overcome. But those who surrender unto Me cross beyond it easily.' },
+  { id:'bg-9.10', meter:'anushtubh', difficulty:'medium', source:'Bhagavad-gītā', reference:'BG 9.10', text:`mayādhyakṣeṇa prakṛtiḥ\nsūyate sa-carācaram\nhetunānena kaunteya\njagad viparivartate`, translation:'Under My supervision, material nature produces all moving and nonmoving beings. By this cause the universe revolves.' },
+  { id:'bg-14.26', meter:'anushtubh', difficulty:'medium', source:'Bhagavad-gītā', reference:'BG 14.26', text:`māṁ ca yo 'vyabhicāreṇa\nbhakti-yogena sevate\nsa guṇān samatītyaitān\nbrahma-bhūyāya kalpate`, translation:'One who engages in full devotional service, unfailing in all circumstances, transcends the modes and reaches the Brahman platform.' },
+  { id:'bg-18.55', meter:'anushtubh', difficulty:'medium-hard', source:'Bhagavad-gītā', reference:'BG 18.55', text:`bhaktyā mām abhijānāti\nyāvān yaś cāsmi tattvataḥ\ntato māṁ tattvato jñātvā\nviśate tad-anantaram`, translation:'One can understand Me as I am only by devotional service. And when in full consciousness of Me, one can enter My kingdom.' },
 ]
 
 // Helper functions

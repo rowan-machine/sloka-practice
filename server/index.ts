@@ -108,7 +108,17 @@ function splitIntoPadas(text: string, syllablesPerLine: number): string[] {
 }
 
 // Synthesize one pāda with ElevenLabs
-async function synthesizePada(text: string, settings: PadaSettings, apiKey: string, voiceId: string): Promise<Buffer> {
+async function synthesizePada(text: string, settings: PadaSettings, apiKey: string, voiceId: string, speed: number = 1): Promise<Buffer> {
+  // For slower speeds, add pauses between words so ElevenLabs generates naturally slower speech
+  let processedText = text
+  if (speed <= 0.5) {
+    // Very slow: each word separated by long pauses, words spoken deliberately
+    processedText = text.split(' ').map(w => `${w}.`).join('     ')
+  } else if (speed < 1) {
+    // Moderate slow: commas force natural pauses between words
+    processedText = text.split(' ').join(',  ')
+  }
+
   const response = await fetch(
     `https://api.elevenlabs.io/v1/text-to-speech/${voiceId}`,
     {
@@ -118,10 +128,10 @@ async function synthesizePada(text: string, settings: PadaSettings, apiKey: stri
         'xi-api-key': apiKey
       },
       body: JSON.stringify({
-        text: text,
+        text: processedText,
         model_id: 'eleven_multilingual_v2',
         voice_settings: {
-          stability: settings.stability,
+          stability: speed <= 0.5 ? Math.max(settings.stability - 0.1, 0.2) : speed < 1 ? settings.stability : settings.stability,
           similarity_boost: 0.75,
           style: settings.style,
           use_speaker_boost: true
@@ -140,7 +150,7 @@ async function synthesizePada(text: string, settings: PadaSettings, apiKey: stri
 
 // Returns per-pāda audio buffers + pitch/rate info for frontend processing
 app.post('/api/speak', async (req, res) => {
-  const { text, meter } = req.body
+  const { text, meter, speed } = req.body
   const apiKey = req.headers['x-api-key'] as string
   const voiceId = (req.headers['x-voice-id'] as string) || DEFAULT_VOICE_ID
 
@@ -164,7 +174,7 @@ app.post('/api/speak', async (req, res) => {
     for (let i = 0; i < padas.length; i++) {
       const padaSettings = config.padas[i % config.padas.length]
       console.log(`  Pāda ${i + 1}: "${padas[i]}" rate=${padaSettings.rate} stability=${padaSettings.stability} style=${padaSettings.style}`)
-      const audioBuffer = await synthesizePada(padas[i], padaSettings, apiKey, voiceId)
+      const audioBuffer = await synthesizePada(padas[i], padaSettings, apiKey, voiceId, speed || 1)
       results.push({
         audio: audioBuffer.toString('base64'),
         rate: padaSettings.rate

@@ -1,9 +1,8 @@
 import React, { useState, useRef, useEffect } from 'react'
-import { soundCategories, extractSoundsFromWord, type SoundCategory, type SoundScore, type KnownWord, type WordStats, saveScores, getAccuracy, recordResult, addKnownWord, removeKnownWord, isWordKnown, getKnownSoundCoverage, getWordAccuracy, getWordsNeedingWork } from './sanskritSounds'
+import { soundCategories, extractSoundsFromWord, type SoundCategory, type SoundScore, type KnownWord, type WordStats, saveScores, getAccuracy, recordResult, addKnownWord, removeKnownWord, isWordKnown, getKnownSoundCoverage, devanagariToRoman } from './sanskritSounds'
 import { getStoredApiKey, getStoredVoiceId } from './Settings'
 
 interface SoundPracticeProps {
-  onBack: () => void
   scores: Record<string, SoundScore>
   setScores: (scores: Record<string, SoundScore>) => void
   knownWords: KnownWord[]
@@ -46,9 +45,8 @@ function highlightWordForCategory(word: string, cat: SoundCategory): React.React
   return <>{spans}</>
 }
 
-export default function SoundPractice({ onBack, scores, setScores, knownWords, setKnownWords, wordStats }: SoundPracticeProps) {
+export default function SoundPractice({ scores, setScores, knownWords, setKnownWords, wordStats }: SoundPracticeProps) {
   const [selectedCategory, setSelectedCategory] = useState<SoundCategory | null>(null)
-  const [newWord, setNewWord] = useState('')
   const [practiceWord, setPracticeWord] = useState<string | null>(null)
   const [transcript, setTranscript] = useState('')
   const [isListening, setIsListening] = useState(false)
@@ -57,7 +55,6 @@ export default function SoundPractice({ onBack, scores, setScores, knownWords, s
   const [speakingWord, setSpeakingWord] = useState<string | null>(null)
   const recognitionRef = useRef<any>(null)
   const isListeningRef = useRef(false)
-
   useEffect(() => { isListeningRef.current = isListening }, [isListening])
 
   useEffect(() => {
@@ -68,16 +65,24 @@ export default function SoundPractice({ onBack, scores, setScores, knownWords, s
     recognition.interimResults = false
     recognition.lang = 'en-IN'
     recognition.onresult = (event: any) => {
-      const result = event.results[0][0].transcript.trim().toLowerCase()
+      const rawResult = event.results[0][0].transcript.trim().toLowerCase()
+      // Also try the romanized version if browser returned Devanagari
+      const romanResult = devanagariToRoman(rawResult).toLowerCase()
+      const result = romanResult !== rawResult ? romanResult : rawResult
       setTranscript(result)
       if (practiceWord) {
-        const similarity = compareSimple(practiceWord, result)
+        // Compare against both raw and romanized transcripts, take the best
+        const sim1 = compareSimple(practiceWord, rawResult)
+        const sim2 = romanResult !== rawResult ? compareSimple(practiceWord, romanResult) : 0
+        const similarity = Math.max(sim1, sim2)
         const status = similarity >= 0.65 ? 'green' : similarity >= 0.35 ? 'yellow' : 'red'
         setWordResult(status)
         const updated = recordResult(scores, practiceWord, status)
         setScores(updated)
         saveScores(updated)
-        if (status === 'green') setKnownWords(addKnownWord(knownWords, practiceWord))
+        if (status === 'green') {
+          setKnownWords(addKnownWord(knownWords, practiceWord))
+        }
       }
       setIsListening(false)
     }
@@ -85,7 +90,7 @@ export default function SoundPractice({ onBack, scores, setScores, knownWords, s
     recognition.onend = () => setIsListening(false)
     recognitionRef.current = recognition
     return () => { try { recognition.stop() } catch (_) {} }
-  }, [practiceWord, scores, setScores, knownWords, setKnownWords])
+  }, [practiceWord, scores, setScores, knownWords, setKnownWords, wordStats])
 
   const normalize = (s: string) => s.toLowerCase()
     .replace(/[।॥\-,\.!?'":;''/]/g, '')
@@ -101,13 +106,46 @@ export default function SoundPractice({ onBack, scores, setScores, knownWords, s
     .replace(/ph/g, 'p').replace(/bh/g, 'b')
     .trim()
 
+  // Phonetic normalization — collapse sounds that speech recognition confuses
+  const phoneticNorm = (s: string) => s
+    .replace(/sh/g, 's').replace(/ch/g, 'c').replace(/th/g, 't').replace(/ph/g, 'p')
+    .replace(/kh/g, 'k').replace(/gh/g, 'g').replace(/dh/g, 'd').replace(/bh/g, 'b')
+    .replace(/ee/g, 'i').replace(/oo/g, 'u').replace(/aa/g, 'a')
+    .replace(/y/g, 'i').replace(/w/g, 'v')
+    .replace(/[aeiou]+/g, m => m[0]) // collapse repeated vowels to one
+
   const compareSimple = (expected: string, spoken: string): number => {
     const a = normalize(expected)
     const b = normalize(spoken)
     if (a === b) return 1
     const dist = levenshtein(a, b)
     const maxLen = Math.max(a.length, b.length)
-    return maxLen > 0 ? 1 - dist / maxLen : 1
+    const basicSim = maxLen > 0 ? 1 - dist / maxLen : 1
+
+    // Also try phonetic comparison for better tolerance of speech recognition quirks
+    const pa = phoneticNorm(a)
+    const pb = phoneticNorm(b)
+    const pDist = levenshtein(pa, pb)
+    const pMax = Math.max(pa.length, pb.length)
+    const phoneticSim = pMax > 0 ? 1 - pDist / pMax : 1
+
+    // Also try if spoken text contains the expected word (speech recognition sometimes adds extra words)
+    const words = b.split(/\s+/)
+    let bestWordSim = 0
+    for (const w of words) {
+      const wDist = levenshtein(a, w)
+      const wMax = Math.max(a.length, w.length)
+      const wSim = wMax > 0 ? 1 - wDist / wMax : 1
+      if (wSim > bestWordSim) bestWordSim = wSim
+      // Also phonetic per-word
+      const pw = phoneticNorm(w)
+      const pwDist = levenshtein(pa, pw)
+      const pwMax = Math.max(pa.length, pw.length)
+      const pwSim = pwMax > 0 ? 1 - pwDist / pwMax : 1
+      if (pwSim > bestWordSim) bestWordSim = pwSim
+    }
+
+    return Math.max(basicSim, phoneticSim, bestWordSim)
   }
 
   const startPractice = (word: string) => {
@@ -203,154 +241,24 @@ export default function SoundPractice({ onBack, scores, setScores, knownWords, s
   // ═══════════════════════════════════════════════
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-orange-50 via-amber-50 to-purple-50 p-4 md:p-8">
+    <div className="min-h-screen bg-gradient-to-br from-orange-50 via-amber-50 to-purple-50 px-3 pt-3 pb-24 md:p-8 md:pb-24">
       <div className="max-w-5xl mx-auto">
-        <header className="text-center mb-8">
-          <button
-            onClick={onBack}
-            className="absolute top-4 left-4 md:top-8 md:left-8 px-4 py-2 bg-white text-purple-700 rounded-lg shadow hover:bg-purple-50 transition-colors border border-purple-200 font-medium"
-          >
-            ← Back to Practice
-          </button>
-          <h1 className="text-3xl md:text-4xl font-bold text-purple-900 mb-1">वर्णमाला अभ्यास</h1>
-          <h2 className="text-lg text-gray-600">Sanskrit Sound Practice</h2>
-          <p className="text-sm text-gray-400 mt-1">Click any category to practice • Your known words are highlighted per sound type</p>
+        <header className="flex items-center justify-between mb-4">
+          <div>
+            <h1 className="text-xl font-bold text-purple-900 leading-tight">Sanskrit Sounds <span className="text-base font-normal text-gray-400">वर्णमाला</span></h1>
+            <p className="text-xs text-gray-400 mt-0.5">Tap a category to practice pronunciation</p>
+          </div>
+          <div className="text-right">
+            <div className="text-lg font-bold text-purple-700">{soundCategories.filter(c => { const s = scores[c.id]; return s && getAccuracy(s) >= 80 }).length}/{soundCategories.length}</div>
+            <div className="text-[10px] text-gray-400">mastered</div>
+          </div>
         </header>
 
         {/* ═══════ OVERVIEW ═══════ */}
         {!selectedCategory && (
           <div>
-            {/* Stats + add word */}
-            <section className="bg-white rounded-2xl shadow-lg p-5 mb-6 border border-gray-100">
-              <div className="flex flex-wrap items-end justify-between gap-3 mb-3">
-                <h3 className="text-lg font-semibold text-gray-700">
-                  Your Progress
-                  {knownWords.length > 0 && (
-                    <span className="ml-2 text-sm font-normal text-green-600">✓ {knownWords.length} known word{knownWords.length !== 1 ? 's' : ''}</span>
-                  )}
-                </h3>
-                <div className="flex gap-2">
-                  <input
-                    type="text" value={newWord}
-                    onChange={e => setNewWord(e.target.value)}
-                    onKeyDown={e => { if (e.key === 'Enter' && newWord.trim()) { setKnownWords(addKnownWord(knownWords, newWord)); setNewWord('') } }}
-                    placeholder="Add known word..."
-                    className="px-3 py-1.5 border-2 border-purple-200 rounded-lg focus:border-purple-500 focus:outline-none text-sm font-serif w-40"
-                  />
-                  <button
-                    onClick={() => { if (newWord.trim()) { setKnownWords(addKnownWord(knownWords, newWord)); setNewWord('') } }}
-                    disabled={!newWord.trim()}
-                    className="px-3 py-1.5 bg-green-500 text-white rounded-lg text-sm font-medium hover:bg-green-600 transition-colors disabled:opacity-40"
-                  >+ Add</button>
-                </div>
-              </div>
-              {Object.values(scores).some(s => s.correct + s.close + s.wrong > 0) && (
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                  {(() => {
-                    const t = Object.values(scores).reduce((a, s) => ({ c: a.c + s.correct, cl: a.cl + s.close, w: a.w + s.wrong }), { c: 0, cl: 0, w: 0 })
-                    const total = t.c + t.cl + t.w
-                    const acc = total > 0 ? Math.round((t.c / total) * 100) : 0
-                    return (<>
-                      <div className="text-center p-2 bg-purple-50 rounded-xl"><div className="text-xl font-bold text-purple-700">{total}</div><div className="text-xs text-gray-500">Attempts</div></div>
-                      <div className="text-center p-2 bg-green-50 rounded-xl"><div className="text-xl font-bold text-green-600">{acc}%</div><div className="text-xs text-gray-500">Accuracy</div></div>
-                      <div className="text-center p-2 bg-green-50 rounded-xl"><div className="text-xl font-bold text-green-600">{t.c}</div><div className="text-xs text-gray-500">Correct</div></div>
-                      <div className="text-center p-2 bg-red-50 rounded-xl"><div className="text-xl font-bold text-red-600">{t.w}</div><div className="text-xs text-gray-500">Needs Work</div></div>
-                    </>)
-                  })()}
-                </div>
-              )}
-            </section>
-
-            {/* ═══ NEEDS WORK — ranked word list with recordings ═══ */}
-            {(() => {
-              const wordsToWork = getWordsNeedingWork(wordStats)
-              if (wordsToWork.length === 0) return null
-              return (
-                <section className="bg-white rounded-2xl shadow-lg p-5 mb-6 border border-gray-100">
-                  <h3 className="text-lg font-semibold text-gray-700 mb-1">Needs Work</h3>
-                  <p className="text-xs text-gray-400 mb-4">Words ranked by accuracy. Click 🔊 to hear the correct pronunciation. Click ▶ on recordings to hear your attempt.</p>
-                  <div className="space-y-2 max-h-96 overflow-y-auto pr-1">
-                    {wordsToWork.map((ws, idx) => {
-                      const acc = getWordAccuracy(ws)
-                      const accColor = acc >= 80 ? 'text-green-600' : acc >= 50 ? 'text-yellow-600' : acc < 30 ? 'text-red-600' : 'text-orange-500'
-                      const accBg = acc >= 80 ? 'bg-green-50 border-green-200' : acc >= 50 ? 'bg-yellow-50 border-yellow-200' : 'bg-red-50 border-red-200'
-                      const recordings = ws.history.filter(h => h.recordingUrl)
-                      const known = isWordKnown(knownWords, ws.word)
-
-                      return (
-                        <div key={idx} className={`p-3 rounded-xl border ${accBg}`}>
-                          <div className="flex items-center justify-between gap-3">
-                            <div className="flex items-center gap-3 flex-1 min-w-0">
-                              {/* Rank */}
-                              <span className="text-xs text-gray-400 font-mono w-6 text-right shrink-0">#{idx + 1}</span>
-                              {/* Word + listen */}
-                              <button
-                                onClick={() => speakWord(ws.word)}
-                                className={`font-serif text-lg font-bold truncate hover:text-purple-700 transition-colors ${
-                                  speakingWord === ws.word ? 'text-purple-600' : 'text-gray-800'
-                                }`}
-                                title="Click to hear correct pronunciation"
-                              >
-                                <span className="text-xs mr-1 opacity-50">🔊</span>
-                                {ws.word}
-                              </button>
-                              {known && <span className="text-xs text-green-600 shrink-0">✓</span>}
-                            </div>
-                            <div className="flex items-center gap-3 shrink-0">
-                              {/* Accuracy */}
-                              <div className="text-right">
-                                <div className={`text-lg font-bold ${accColor}`}>{acc}%</div>
-                                <div className="text-xs text-gray-400">{ws.attempts} attempt{ws.attempts !== 1 ? 's' : ''}</div>
-                              </div>
-                              {/* Mini bar */}
-                              <div className="w-16 h-2 bg-gray-200 rounded-full overflow-hidden">
-                                <div className={`h-full rounded-full ${acc >= 80 ? 'bg-green-500' : acc >= 50 ? 'bg-yellow-500' : 'bg-red-500'}`} style={{ width: `${acc}%` }} />
-                              </div>
-                            </div>
-                          </div>
-
-                          {/* Attempt history dots */}
-                          <div className="flex items-center gap-1 mt-2">
-                            <span className="text-xs text-gray-400 mr-1">History:</span>
-                            {ws.history.slice(0, 15).map((h, hi) => (
-                              <span
-                                key={hi}
-                                className={`w-3 h-3 rounded-full shrink-0 ${
-                                  h.status === 'green' ? 'bg-green-400' : h.status === 'yellow' ? 'bg-yellow-400' : 'bg-red-400'
-                                }`}
-                                title={`${h.status} — heard: "${h.transcript}" — ${new Date(h.date).toLocaleString()}`}
-                              />
-                            ))}
-                          </div>
-
-                          {/* Recordings — play your wrong attempts */}
-                          {recordings.length > 0 && (
-                            <div className="mt-2 flex flex-wrap gap-2">
-                              <span className="text-xs text-gray-400 self-center">Your recordings:</span>
-                              {recordings.map((rec, ri) => (
-                                <button
-                                  key={ri}
-                                  onClick={() => { if (rec.recordingUrl) new Audio(rec.recordingUrl).play() }}
-                                  className={`text-xs px-2 py-1 rounded-lg border transition-colors ${
-                                    rec.status === 'red' ? 'bg-red-50 border-red-200 text-red-700 hover:bg-red-100' : 'bg-yellow-50 border-yellow-200 text-yellow-700 hover:bg-yellow-100'
-                                  }`}
-                                  title={`Heard: "${rec.transcript}" — ${new Date(rec.date).toLocaleString()}`}
-                                >
-                                  ▶ {rec.status === 'red' ? '✗' : '≈'} "{rec.transcript.slice(0, 15)}"
-                                </button>
-                              ))}
-                            </div>
-                          )}
-                        </div>
-                      )
-                    })}
-                  </div>
-                </section>
-              )
-            })()}
-
-            {/* Sound category cards with inline known words */}
-            <div className="grid gap-4 md:grid-cols-2">
+            {/* Sound category cards */}
+            <div className="grid gap-3 md:grid-cols-2">
               {soundCategories.map(cat => {
                 const score = scores[cat.id]
                 const accuracy = score ? getAccuracy(score) : -1
@@ -359,55 +267,60 @@ export default function SoundPractice({ onBack, scores, setScores, knownWords, s
                 const knownCount = coverage[cat.id] || 0
 
                 return (
-                  <div key={cat.id} className={`rounded-2xl border-2 overflow-hidden transition-all ${getScoreBg(accuracy)}`}>
-                    {/* Header — click to drill in */}
+                  <div key={cat.id} className={`rounded-2xl border overflow-hidden transition-all active:scale-[0.98] ${getScoreBg(accuracy)}`}>
                     <button
                       onClick={() => setSelectedCategory(cat)}
-                      className="w-full text-left p-4 hover:bg-white/50 transition-colors"
+                      className="w-full text-left p-3.5 hover:bg-white/50 transition-colors"
                     >
-                      <div className="flex justify-between items-start mb-1">
-                        <div>
-                          <span className="font-bold text-gray-800">{cat.name}</span>
-                          <span className="ml-2 text-lg">{cat.devanagari}</span>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          {knownCount > 0 && (
-                            <span className="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full font-medium">✓ {knownCount}</span>
-                          )}
-                          {total > 0 && (
-                            <span className={`text-lg font-bold ${getScoreColor(accuracy)}`}>{accuracy}%</span>
-                          )}
+                      {/* Top row: devanagari badge + name + score */}
+                      <div className="flex items-center gap-2.5 mb-1.5">
+                        <span className="text-xl w-10 h-10 flex items-center justify-center bg-purple-100 text-purple-800 rounded-xl font-bold shrink-0">{cat.devanagari.split(' ')[0]}</span>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center justify-between gap-2">
+                            <span className="font-semibold text-gray-800 text-sm truncate">{cat.name}</span>
+                            {total > 0 ? (
+                              <span className={`text-sm font-bold shrink-0 ${getScoreColor(accuracy)}`}>{accuracy}%</span>
+                            ) : (
+                              <span className="text-[10px] text-gray-300 shrink-0">NEW</span>
+                            )}
+                          </div>
+                          <div className="flex items-center gap-2 mt-0.5">
+                            <div className="flex-1 h-1 bg-gray-200 rounded-full overflow-hidden">
+                              <div className={`h-full rounded-full transition-all ${getBarColor(accuracy)}`} style={{ width: `${accuracy < 0 ? 0 : accuracy}%` }} />
+                            </div>
+                            {knownCount > 0 && (
+                              <span className="text-[10px] text-green-600 font-medium shrink-0">✓{knownCount}</span>
+                            )}
+                          </div>
                         </div>
                       </div>
-                      <p className="text-xs text-gray-500 mb-2 line-clamp-1">{cat.description}</p>
-                      <div className="w-full h-1.5 bg-gray-200 rounded-full overflow-hidden">
-                        <div className={`h-full rounded-full transition-all ${getBarColor(accuracy)}`} style={{ width: `${accuracy < 0 ? 0 : accuracy}%` }} />
-                      </div>
-                      <div className="flex justify-between mt-1">
-                        <span className="text-xs text-gray-400">{total > 0 ? `${total} attempts` : 'Not practiced yet'}</span>
-                        <span className="text-xs text-purple-500 font-medium">Practice →</span>
+
+                      {/* Practice CTA */}
+                      <div className="flex items-center justify-between mt-2">
+                        <span className="text-[11px] text-gray-400 truncate pr-2">{total > 0 ? `${total} attempts` : 'Tap to start'}</span>
+                        <span className="shrink-0 px-3 py-1 bg-purple-600 text-white text-xs font-semibold rounded-lg">Practice</span>
                       </div>
                     </button>
 
-                    {/* Known words for this category — highlighted inline */}
+                    {/* Known words preview */}
                     {catKnown.length > 0 && (
-                      <div className="px-4 pb-3 border-t border-gray-100/50">
-                        <div className="flex flex-wrap gap-1.5 mt-2">
-                          {catKnown.slice(0, 10).map((kw, i) => (
+                      <div className="px-3.5 pb-2.5 border-t border-gray-100/50">
+                        <div className="flex flex-wrap gap-1 mt-1.5">
+                          {catKnown.slice(0, 6).map((kw, i) => (
                             <button
                               key={i}
                               onClick={() => speakWord(kw.word)}
-                              className={`inline-flex items-center gap-1 px-2 py-1 rounded-lg text-sm font-serif border transition-all cursor-pointer ${
+                              className={`inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-md text-xs font-serif border transition-all cursor-pointer ${
                                 speakingWord === kw.word ? 'bg-purple-100 border-purple-300 scale-105' : 'bg-white/80 border-gray-200 hover:border-purple-300 hover:bg-purple-50'
                               }`}
                               title={`Click to hear "${kw.word}"`}
                             >
-                              <span className="text-xs opacity-50">🔊</span>
+                              <span className="text-[10px] opacity-40">🔊</span>
                               {highlightWordForCategory(kw.word, cat)}
                             </button>
                           ))}
-                          {catKnown.length > 10 && (
-                            <span className="self-center text-xs text-gray-400">+{catKnown.length - 10} more</span>
+                          {catKnown.length > 6 && (
+                            <span className="self-center text-[10px] text-gray-400">+{catKnown.length - 6}</span>
                           )}
                         </div>
                       </div>
@@ -550,7 +463,7 @@ export default function SoundPractice({ onBack, scores, setScores, knownWords, s
                              wordResult === 'yellow' ? '≈ Close — try again' :
                              '✗ Not quite — listen and try again'}
                           </span>
-                          {transcript && <span className="ml-2 text-sm opacity-75">(heard: "{transcript}")</span>}
+                          {transcript && <span className="ml-2 text-sm opacity-75">(heard: "{devanagariToRoman(transcript)}")</span>}
                         </div>
                       )}
 
@@ -577,19 +490,72 @@ export default function SoundPractice({ onBack, scores, setScores, knownWords, s
                     <div className="text-center p-3 bg-yellow-50 rounded-xl"><div className="text-xl font-bold text-yellow-600">{score.close}</div><div className="text-xs text-gray-500">Close</div></div>
                     <div className="text-center p-3 bg-red-50 rounded-xl"><div className="text-xl font-bold text-red-600">{score.wrong}</div><div className="text-xs text-gray-500">Incorrect</div></div>
                   </div>
-                  {score.history.length > 1 && (
-                    <div>
-                      <h5 className="text-sm font-medium text-gray-500 mb-2">Accuracy Over Time</h5>
-                      <div className="flex items-end gap-1 h-16">
-                        {score.history.map((h, i) => (
-                          <div key={i} className={`flex-1 rounded-t ${getBarColor(h.score)} opacity-80`}
-                            style={{ height: `${Math.max(4, h.score)}%` }}
-                            title={`${h.score}% — ${new Date(h.date).toLocaleDateString()}`}
-                          />
-                        ))}
+                  {score.history.length > 1 && (() => {
+                    const points = score.history.slice().reverse() // oldest first
+                    const chartW = 280
+                    const chartH = 80
+                    const padX = 30
+                    const padY = 14
+                    const w = chartW - padX * 2
+                    const h = chartH - padY * 2
+                    const coords = points.map((p, i) => ({
+                      x: padX + (points.length > 1 ? (i / (points.length - 1)) * w : w / 2),
+                      y: padY + h - (p.score / 100) * h,
+                      score: p.score,
+                      date: new Date(p.date).toLocaleDateString()
+                    }))
+                    const linePath = coords.map((c, i) => `${i === 0 ? 'M' : 'L'}${c.x},${c.y}`).join(' ')
+                    const areaPath = linePath + ` L${coords[coords.length - 1].x},${padY + h} L${coords[0].x},${padY + h} Z`
+                    const latest = points[points.length - 1].score
+                    const first = points[0].score
+                    const trend = latest - first
+                    return (
+                      <div>
+                        <div className="flex items-center justify-between mb-1">
+                          <h5 className="text-sm font-medium text-gray-500">Accuracy Over Time</h5>
+                          <span className={`text-xs font-bold ${trend > 0 ? 'text-green-600' : trend < 0 ? 'text-red-600' : 'text-gray-400'}`}>
+                            {trend > 0 ? '↑' : trend < 0 ? '↓' : '→'} {Math.abs(trend)}% {trend > 0 ? 'improvement' : trend < 0 ? 'decline' : 'stable'}
+                          </span>
+                        </div>
+                        <svg viewBox={`0 0 ${chartW} ${chartH}`} className="w-full" style={{ maxHeight: '100px' }}>
+                          {/* Grid lines */}
+                          {[0, 25, 50, 75, 100].map(v => {
+                            const y = padY + h - (v / 100) * h
+                            return (
+                              <g key={v}>
+                                <line x1={padX} y1={y} x2={chartW - padX} y2={y} stroke="#e5e7eb" strokeWidth="0.5" strokeDasharray={v === 0 || v === 100 ? '' : '2,2'} />
+                                <text x={padX - 4} y={y + 3} textAnchor="end" fontSize="7" fill="#9ca3af">{v}%</text>
+                              </g>
+                            )
+                          })}
+                          {/* Area fill */}
+                          <path d={areaPath} fill="url(#accuracyGrad)" opacity="0.3" />
+                          {/* Line */}
+                          <path d={linePath} fill="none" stroke="#8b5cf6" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                          {/* Dots */}
+                          {coords.map((c, i) => (
+                            <g key={i}>
+                              <circle cx={c.x} cy={c.y} r="3" fill={c.score >= 80 ? '#22c55e' : c.score >= 50 ? '#eab308' : '#ef4444'} stroke="white" strokeWidth="1" />
+                              {(i === 0 || i === coords.length - 1 || points.length <= 6) && (
+                                <text x={c.x} y={c.y - 6} textAnchor="middle" fontSize="7" fill="#6b7280" fontWeight="bold">{c.score}%</text>
+                              )}
+                            </g>
+                          ))}
+                          <defs>
+                            <linearGradient id="accuracyGrad" x1="0" y1="0" x2="0" y2="1">
+                              <stop offset="0%" stopColor="#8b5cf6" />
+                              <stop offset="100%" stopColor="#8b5cf6" stopOpacity="0" />
+                            </linearGradient>
+                          </defs>
+                        </svg>
+                        <div className="flex justify-between text-[9px] text-gray-400 -mt-1 px-1">
+                          <span>{coords[0].date}</span>
+                          {coords.length > 2 && <span>Latest: {latest}%</span>}
+                          <span>{coords[coords.length - 1].date}</span>
+                        </div>
                       </div>
-                    </div>
-                  )}
+                    )
+                  })()}
                 </section>
               )
             })()}

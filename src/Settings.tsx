@@ -2,6 +2,13 @@ import { useState, useEffect } from 'react'
 
 const API_KEY_STORAGE = 'sloka_elevenlabs_key'
 const VOICE_STORAGE = 'sloka_voice_id'
+const MASTERY_THRESHOLD_KEY = 'sloka_mastery_threshold'
+const DEFAULT_MASTERY_THRESHOLD = 80
+
+export function getMasteryThreshold(): number {
+  const v = localStorage.getItem(MASTERY_THRESHOLD_KEY)
+  return v ? Number(v) : DEFAULT_MASTERY_THRESHOLD
+}
 
 export interface VoiceOption {
   id: string
@@ -37,10 +44,12 @@ export default function Settings({ onBack }: { onBack: () => void }) {
   const [testStatus, setTestStatus] = useState<'idle' | 'testing' | 'success' | 'error'>('idle')
   const [selectedVoice, setSelectedVoice] = useState(DEFAULT_VOICE)
   const [previewingVoice, setPreviewingVoice] = useState<string | null>(null)
+  const [masteryThreshold, setMasteryThreshold] = useState(DEFAULT_MASTERY_THRESHOLD)
 
   useEffect(() => {
     setApiKey(getStoredApiKey())
     setSelectedVoice(getStoredVoiceId())
+    setMasteryThreshold(getMasteryThreshold())
   }, [])
 
   const selectVoice = (voiceId: string) => {
@@ -255,6 +264,23 @@ export default function Settings({ onBack }: { onBack: () => void }) {
               Add your API key above to preview voices and hear high-quality pronunciation.
             </p>
           )}
+        </div>
+
+        {/* Mastery Threshold */}
+        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-4">
+          <h2 className="font-semibold text-gray-800 mb-1">Mastery Threshold</h2>
+          <p className="text-xs text-gray-500 mb-3">
+            Words at or above this accuracy are considered mastered and won't appear in "Needs Work".
+          </p>
+          <div className="flex items-center gap-3">
+            <input
+              type="range" min="50" max="100" step="5"
+              value={masteryThreshold}
+              onChange={e => { const v = Number(e.target.value); setMasteryThreshold(v); localStorage.setItem(MASTERY_THRESHOLD_KEY, String(v)) }}
+              className="flex-1 accent-purple-600"
+            />
+            <span className="text-lg font-bold text-purple-700 w-14 text-right">{masteryThreshold}%</span>
+          </div>
         </div>
 
         {/* Data Management */}

@@ -420,7 +420,7 @@ export interface WordStats {
 
 const WORD_STATS_KEY = 'sanskrit-word-stats'
 const MAX_ATTEMPTS_STORED = 20
-const MAX_RECORDINGS = 5  // keep only last 5 recordings per word to save storage
+const MAX_RECORDINGS = 3  // keep only last 3 recordings per word to save storage
 
 export function loadWordStats(): Record<string, WordStats> {
   try {
@@ -431,7 +431,24 @@ export function loadWordStats(): Record<string, WordStats> {
 }
 
 export function saveWordStats(stats: Record<string, WordStats>) {
-  localStorage.setItem(WORD_STATS_KEY, JSON.stringify(stats))
+  try {
+    localStorage.setItem(WORD_STATS_KEY, JSON.stringify(stats))
+  } catch (e) {
+    // Quota exceeded — strip all recording URLs and retry
+    console.warn('[WordStats] Storage quota exceeded, stripping recordings to free space')
+    const stripped = { ...stats }
+    for (const key of Object.keys(stripped)) {
+      stripped[key] = {
+        ...stripped[key],
+        history: stripped[key].history.map(h => ({ ...h, recordingUrl: undefined }))
+      }
+    }
+    try {
+      localStorage.setItem(WORD_STATS_KEY, JSON.stringify(stripped))
+    } catch (_) {
+      console.error('[WordStats] Still cannot save even after stripping recordings')
+    }
+  }
 }
 
 export function recordWordAttempt(
@@ -489,11 +506,66 @@ export function getWordAccuracy(ws: WordStats): number {
   return Math.round((ws.correct / ws.attempts) * 100)
 }
 
-// Get all words sorted by accuracy (worst first)
-export function getWordsNeedingWork(stats: Record<string, WordStats>): WordStats[] {
+// Get all words sorted by accuracy (worst first), excluding those at or above the mastery threshold
+export function getWordsNeedingWork(stats: Record<string, WordStats>, masteryThreshold = 80): WordStats[] {
   return Object.values(stats)
-    .filter(ws => ws.attempts > 0)
+    .filter(ws => ws.attempts > 0 && getWordAccuracy(ws) < masteryThreshold)
     .sort((a, b) => getWordAccuracy(a) - getWordAccuracy(b))
+}
+
+// ═══ Devanagari → Roman transliteration (for display) ═══
+
+const devaMap: [string, string][] = [
+  // Vowel signs (matras) — must come before independent vowels
+  ['ौ','au'],['ै','ai'],['ो','o'],['े','e'],['ू','ū'],['ु','u'],['ी','ī'],['ि','i'],['ा','ā'],['ृ','ṛ'],
+  // Independent vowels
+  ['औ','au'],['ऐ','ai'],['ओ','o'],['ए','e'],['ऊ','ū'],['उ','u'],['ई','ī'],['इ','i'],['आ','ā'],['अ','a'],['ऋ','ṛ'],
+  // Consonants (conjuncts/aspirates first)
+  ['क्ष','kṣ'],['त्र','tr'],['ज्ञ','jñ'],['श्र','śr'],
+  ['खा','khā'],['घा','ghā'],['छा','chā'],['झा','jhā'],['ठा','ṭhā'],['ढा','ḍhā'],['था','thā'],['धा','dhā'],['फा','phā'],['भा','bhā'],
+  ['ख','kh'],['घ','gh'],['छ','ch'],['झ','jh'],['ठ','ṭh'],['ढ','ḍh'],['थ','th'],['ध','dh'],['फ','ph'],['भ','bh'],
+  ['क','k'],['ग','g'],['ङ','ṅ'],['च','c'],['ज','j'],['ञ','ñ'],
+  ['ट','ṭ'],['ड','ḍ'],['ण','ṇ'],['त','t'],['द','d'],['न','n'],
+  ['प','p'],['ब','b'],['म','m'],
+  ['य','y'],['र','r'],['ल','l'],['व','v'],
+  ['श','ś'],['ष','ṣ'],['स','s'],['ह','h'],
+  // Special marks
+  ['ं','ṁ'],['ः','ḥ'],['ँ','~'],['्',''],['़',''],
+  ['।','|'],['॥','||'],
+]
+
+export function devanagariToRoman(text: string): string {
+  // If no Devanagari characters, return as-is
+  if (!/[\u0900-\u097F]/.test(text)) return text
+  let result = ''
+  let i = 0
+  while (i < text.length) {
+    let matched = false
+    // Try longest match first (2 chars, then 1)
+    for (const [deva, roman] of devaMap) {
+      if (text.startsWith(deva, i)) {
+        result += roman
+        i += deva.length
+        matched = true
+        // Add implicit 'a' after consonant if next char is not a matra, virama, or another combining mark
+        if (roman.length > 0 && /[a-zḍṭṇṅñśṣṛṁḥ]$/i.test(roman) && !/[aeiouāīūṛ]$/i.test(roman)) {
+          const next = text[i]
+          const isVowelSign = next && /[\u093E-\u094C\u0962\u0963]/.test(next)
+          const isVirama = next === '्'
+          const isConsonant = next && /[\u0915-\u0939]/.test(next)
+          if (!isVowelSign && !isVirama && !isConsonant) {
+            result += 'a'
+          }
+        }
+        break
+      }
+    }
+    if (!matched) {
+      result += text[i]
+      i++
+    }
+  }
+  return result
 }
 
 // ═══ Śloka / Mantra completion tracking ═══
@@ -504,6 +576,7 @@ export interface SlokaProgress {
   completed: boolean      // true when perfectCount >= 3
   lastPerfectDate?: string
   attempts: number        // total times practiced
+  manualStatus?: 'not-started' | 'practicing' | 'mastered'  // user override
 }
 
 const SLOKA_PROGRESS_KEY = 'sloka_progress'
@@ -517,6 +590,60 @@ export function loadSlokaProgress(): Record<string, SlokaProgress> {
 
 export function saveSlokaProgress(progress: Record<string, SlokaProgress>): void {
   localStorage.setItem(SLOKA_PROGRESS_KEY, JSON.stringify(progress))
+}
+
+// ═══ Temple Program (memorization queue) ═══
+
+export interface CustomMantra {
+  id: string           // e.g. 'custom-1719...'
+  text: string
+  title: string        // user-given name
+  translation?: string
+}
+
+export interface TempleService {
+  id: string           // e.g. 'mangala-arati'
+  name: string
+  timeOfDay: 'morning' | 'evening'
+  order: number        // display order within time-of-day
+  mantraIds: string[]  // slokaLibrary ids or custom-* ids
+}
+
+export interface TempleProgram {
+  services: TempleService[]
+  customMantras: CustomMantra[]
+}
+
+const TEMPLE_PROGRAM_KEY = 'temple_program'
+
+const DEFAULT_SERVICES: TempleService[] = [
+  { id: 'mangala-arati', name: 'Maṅgala Āratī', timeOfDay: 'morning', order: 0, mantraIds: [] },
+  { id: 'tulasi-puja', name: 'Tulasī Pūjā', timeOfDay: 'morning', order: 1, mantraIds: [] },
+  { id: 'darsana-arati', name: 'Darśana Āratī', timeOfDay: 'morning', order: 2, mantraIds: [] },
+  { id: 'guru-puja', name: 'Guru Pūjā', timeOfDay: 'morning', order: 3, mantraIds: [] },
+  { id: 'bhagavatam', name: 'Śrīmad-Bhāgavatam Class', timeOfDay: 'morning', order: 4, mantraIds: [] },
+  { id: 'sandhya-arati', name: 'Sandhyā Āratī', timeOfDay: 'evening', order: 0, mantraIds: [] },
+  { id: 'sayana-arati', name: 'Śayana Āratī', timeOfDay: 'evening', order: 1, mantraIds: [] },
+]
+
+export function loadTempleProgram(): TempleProgram {
+  try {
+    const stored = localStorage.getItem(TEMPLE_PROGRAM_KEY)
+    if (stored) {
+      const parsed = JSON.parse(stored) as TempleProgram
+      // Merge any new default services not yet in stored data
+      const existingIds = new Set(parsed.services.map(s => s.id))
+      for (const def of DEFAULT_SERVICES) {
+        if (!existingIds.has(def.id)) parsed.services.push(def)
+      }
+      return parsed
+    }
+  } catch { /* ignore */ }
+  return { services: [...DEFAULT_SERVICES], customMantras: [] }
+}
+
+export function saveTempleProgram(program: TempleProgram): void {
+  localStorage.setItem(TEMPLE_PROGRAM_KEY, JSON.stringify(program))
 }
 
 // Record an attempt — pass allGreen=true when every word in the śloka was green
