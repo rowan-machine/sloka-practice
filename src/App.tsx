@@ -362,13 +362,15 @@ function App() {
     setTooltipWord(null)
   }
 
-  // Auto-detect meter when sloka changes
+  // Use library entry's meter if available, otherwise auto-detect
   useEffect(() => {
-    if (sloka.trim()) {
+    if (selectedEntry) {
+      setSelectedMeter(selectedEntry.meter)
+    } else if (sloka.trim()) {
       const detected = detectMeter(sloka)
       setSelectedMeter(detected)
     }
-  }, [sloka])
+  }, [sloka, selectedEntry])
 
   useEffect(() => {
     isListeningRef.current = isListening
