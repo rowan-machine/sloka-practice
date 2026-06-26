@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react'
 import { soundCategories, extractSoundsFromWord, type SoundCategory, type SoundScore, type KnownWord, type WordStats, saveScores, getAccuracy, recordResult, addKnownWord, removeKnownWord, isWordKnown, getKnownSoundCoverage, getWordAccuracy, getWordsNeedingWork } from './sanskritSounds'
-import { getStoredApiKey } from './Settings'
+import { getStoredApiKey, getStoredVoiceId } from './Settings'
 
 interface SoundPracticeProps {
   onBack: () => void
@@ -125,7 +125,8 @@ export default function SoundPractice({ onBack, scores, setScores, knownWords, s
     const userKey = getStoredApiKey()
     if (userKey) {
       try {
-        const resp = await fetch('https://api.elevenlabs.io/v1/text-to-speech/XB0fDUnXU5powFXDhCwa', {
+        const voiceId = getStoredVoiceId()
+        const resp = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${voiceId}`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json', 'xi-api-key': userKey },
           body: JSON.stringify({ text: word, model_id: 'eleven_multilingual_v2', voice_settings: { stability: 0.45, similarity_boost: 0.75, style: 0.75 } })

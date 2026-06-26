@@ -795,7 +795,8 @@ function App() {
     const userKey = getStoredApiKey()
     if (userKey) {
       try {
-        const resp = await fetch('https://api.elevenlabs.io/v1/text-to-speech/XB0fDUnXU5powFXDhCwa', {
+        const voiceId = getStoredVoiceId()
+        const resp = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${voiceId}`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
